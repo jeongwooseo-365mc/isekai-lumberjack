@@ -1,6 +1,6 @@
 [package]
 name = "isekai_lumberjack"
-version = "1.0.0"
+version = "1.1.0"
 description = "이세계로 소환되어버린 나무꾼"
 authors = ["game"]
 edition = "2021"

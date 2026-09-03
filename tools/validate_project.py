@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.0."""
+"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.1."""
 
 from __future__ import annotations
 
@@ -165,6 +165,7 @@ def main() -> int:
 
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     css = (ROOT / "styles.css").read_text(encoding="utf-8")
+    game_js = (ROOT / "game.js").read_text(encoding="utf-8")
     check('id="menuToggle"' in html, "mobile menu toggle is missing")
     check('id="targetHud"' in html, "standalone target HP HUD is missing")
     check("grid-template-columns: repeat(4,52px)" in css and "width: 52px; height: 52px" in css, "mobile menu must render as a 4x2 grid of 52px icon buttons")
@@ -172,9 +173,15 @@ def main() -> int:
     check("grid-template-columns: repeat(2,minmax(0,72px))" in css, "equipped gear must use a compact two-column grid")
     check(".equip-slot img { display: block; width: 100%; height: 100%" in css, "equipped gear artwork must fill the enlarged slots")
     check(".food-count-badge" in css and ".equip-slot:nth-child(5)" not in css, "the HUD must support a sixth stacked-food slot")
-    check(".map-point.dungeon { left: 81%; top: 77%" in css, "the dungeon map marker must sit on the lower rocky mountain")
+    check(".map-point.dungeon { left: 86%; top: 88%" in css, "the dungeon map marker must sit near the lower-right rocky mountain with a margin")
     check(".game-shell *::-webkit-scrollbar { display: none" in css and "scrollbar-width: none" in css, "scrollbars must stay hidden while touch scrolling remains available")
     check("-webkit-overflow-scrolling: touch" in css and "overflow-y: auto" in css, "scrollable panels must retain touch scrolling")
+    check('const APP_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.1 runtime and save namespace must match")
+    check("[[80,19,1,0,0,0],[70,20,8,1.6,.3,.1],[60,25,10,3.4,1.2,.4],[50,20,20,11,3,1],[30,15,25,16,11,4]]" in game_js, "rod fishing weights must match the v1.1 table")
+    check("return roll<.03?1:roll<.10?2:null" in game_js, "high areas must drop 3% mid and 7% high stones without low stones")
+    check("return roll<(20/55)?2:1" in game_js, "high normal rewards must be limited to mid and high grades")
+    check("Math.floor(amount/1000)}k" in game_js, "large XP values must use integer k notation")
+    check("{wood2:2000,gold2:2000}" in game_js and "{wood2:800,ore2:800,gold2:400}" in game_js, "divine equipment recipes must use doubled costs")
     for width, height in ((360, 640), (390, 700), (430, 932), (560, 900)):
         if height <= 720:
             scene_height, hud_height = max(height * .52, 320), max(height * .48, 300)
@@ -189,9 +196,9 @@ def main() -> int:
         "src-tauri/src/lib.rs",
         "src-tauri/src/main.rs",
         "README.md",
-        "GAME_DESIGN_MASTER_v1.0.md",
-        "HANDOFF_v1.0.md",
-        "BUILD_REPORT_v1.0.md",
+        "GAME_DESIGN_MASTER_v1.1.md",
+        "HANDOFF_v1.1.md",
+        "BUILD_REPORT_v1.1.md",
         "src-tauri/tauri.android.conf.json",
         "tools/patch_android.py",
         ".github/workflows/windows-build.yml",
@@ -208,7 +215,7 @@ def main() -> int:
     check("python3 tools/patch_android.py --check" in android_workflow, "Android workflow must verify immersive mode and the short app label")
     tauri_config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     check(tauri_config.get("bundle", {}).get("targets") == ["nsis"], "Windows bundle must avoid WiX and build the NSIS setup executable")
-    check(tauri_config.get("version") == "1.0.0", "Tauri version must be 1.0.0")
+    check(tauri_config.get("version") == "1.1.0", "Tauri version must be 1.1.0")
     android_config = json.loads((ROOT / "src-tauri/tauri.android.conf.json").read_text(encoding="utf-8"))
     check(android_config.get("productName") == "이세계나무꾼", "Android launcher name must use the short Korean title")
     main_rs = (ROOT / "src-tauri/src/main.rs").read_text(encoding="utf-8")

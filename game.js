@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.0.0";
-  const SAVE_KEY = "isekai_lumberjack_save_v10";
+  const APP_VERSION = "1.1.0";
+  const SAVE_KEY = "isekai_lumberjack_save_v11";
   const META_KEY = "isekai_lumberjack_meta";
   const MAX_ITEM_COUNT = 9999;
   const GEAR_CAPACITY = 20;
@@ -24,7 +24,7 @@
   const RESOURCE_LABEL = { wood: "목재", ore: "광석", gold: "금화" };
   const FISH = ["해초", "조개", "민어", "숭어", "연어", "랍스터"];
   const FISH_KEY = { 해초: "seaweed", 조개: "shell", 민어: "croaker", 숭어: "mullet", 연어: "salmon", 랍스터: "lobster" };
-  const ROD_PROBS = [[66,27,5,2,0,0],[50,20,15,9,5,1],[26,24,23,18,7,2],[12,12,30,30,12,4],[0,0,20,30,35,15]];
+  const ROD_PROBS = [[80,19,1,0,0,0],[70,20,8,1.6,.3,.1],[60,25,10,3.4,1.2,.4],[50,20,20,11,3,1],[30,15,25,16,11,4]];
   const TARGET_STATS = [
     { min: 200, max: 400, def: 0, xp: 20 },
     { min: 1000, max: 2000, def: 200, xp: 100 },
@@ -32,11 +32,11 @@
   ];
 
   const GEAR_COST = {
-    axe: [{}, {wood0:100}, {wood0:1000,gold0:1000,wood1:100,gold1:100}, {wood1:1000,gold1:1000,wood2:100,gold2:100}, {wood2:1000,gold2:1000}],
-    pickaxe: [{}, {ore0:100}, {ore0:1000,gold0:1000,ore1:100,gold1:100}, {ore1:1000,gold1:1000,ore2:100,wood2:100}, {ore2:1000,gold2:1000}],
-    sword: [{}, {wood0:50,ore0:50}, {wood0:1000,ore0:1000,wood1:100,ore1:100}, {wood1:1000,ore1:1000,wood2:100,ore2:100}, {wood2:1000,ore2:1000}],
-    rod: [{}, {wood0:20,ore0:20,gold0:40}, {wood0:200,ore0:200,gold0:400,wood1:20,ore1:20,gold1:40}, {wood1:200,ore1:200,gold1:400,wood2:20,ore2:20,gold2:40}, {wood2:200,ore2:200,gold2:400}],
-    armor: [{}, {wood0:40,ore0:40,gold0:20}, {wood0:400,ore0:400,gold0:200,wood1:40,ore1:40,gold1:20}, {wood1:400,ore1:400,gold1:200,wood2:40,ore2:40,gold2:20}, {wood2:400,ore2:400,gold2:200}],
+    axe: [{}, {wood0:100}, {wood0:1000,gold0:1000,wood1:100,gold1:100}, {wood1:1000,gold1:1000,wood2:100,gold2:100}, {wood2:2000,gold2:2000}],
+    pickaxe: [{}, {ore0:100}, {ore0:1000,gold0:1000,ore1:100,gold1:100}, {ore1:1000,gold1:1000,ore2:100,wood2:100}, {ore2:2000,gold2:2000}],
+    sword: [{}, {wood0:50,ore0:50}, {wood0:1000,ore0:1000,wood1:100,ore1:100}, {wood1:1000,ore1:1000,wood2:100,ore2:100}, {wood2:2000,ore2:2000}],
+    rod: [{}, {wood0:20,ore0:20,gold0:40}, {wood0:200,ore0:200,gold0:400,wood1:20,ore1:20,gold1:40}, {wood1:200,ore1:200,gold1:400,wood2:20,ore2:20,gold2:40}, {wood2:400,ore2:400,gold2:800}],
+    armor: [{}, {wood0:40,ore0:40,gold0:20}, {wood0:400,ore0:400,gold0:200,wood1:40,ore1:40,gold1:20}, {wood1:400,ore1:400,gold1:200,wood2:40,ore2:40,gold2:20}, {wood2:800,ore2:800,gold2:400}],
   };
 
   const HOUSES = [
@@ -48,11 +48,11 @@
   ];
 
   const RECIPES = [
-    { name: "생선 수프", icon: "fish_soup", heal: 200, cost: {해초:5,민어:1} },
-    { name: "해산물 스튜", icon: "seafood_stew", heal: 400, cost: {해초:20,조개:10,민어:5} },
-    { name: "구운 생선", icon: "grilled_fish", heal: 300, cost: {숭어:1,조개:5} },
-    { name: "연어 스테이크", icon: "salmon_steak", heal: 600, cost: {연어:1} },
-    { name: "고급 랍스터 정식", icon: "lobster_course", heal: 1000, cost: {랍스터:1} },
+    { name: "생선 수프", icon: "fish_soup", heal: 75, cost: {해초:10,민어:2} },
+    { name: "해산물 스튜", icon: "seafood_stew", heal: 225, cost: {해초:10,조개:10,민어:5} },
+    { name: "구운 생선", icon: "grilled_fish", heal: 150, cost: {숭어:1} },
+    { name: "연어 스테이크", icon: "salmon_steak", heal: 350, cost: {연어:1} },
+    { name: "고급 랍스터 정식", icon: "lobster_course", heal: 750, cost: {랍스터:1} },
   ];
 
   const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"dungeon", map:"map", ending:"ending" };
@@ -211,6 +211,15 @@
   function stoneIcon(grade) { return `assets/resources/stone_${["low","mid","high"][grade]}.png`; }
   function fishIcon(name) { return `assets/resources/${FISH_KEY[name]}.png`; }
   function capped(value) { return Math.max(0,Math.min(MAX_ITEM_COUNT,Math.floor(Number(value)||0))); }
+  function compactXp(value) { const amount=Math.max(0,Math.floor(Number(value)||0));return amount>=1000?`${Math.floor(amount/1000)}k`:amount.toLocaleString(); }
+  function weightedIndex(weights,unitRoll) {
+    const total=weights.reduce((sum,value)=>sum+Math.max(0,Number(value)||0),0);
+    if(total<=0)return 0;
+    const roll=Math.max(0,Math.min(.999999999999,Number(unitRoll)||0))*total;
+    let sum=0;
+    for(let index=0;index<weights.length;index++){sum+=Math.max(0,Number(weights[index])||0);if(roll<sum)return index;}
+    return Math.max(0,weights.length-1);
+  }
   function elapsedLabel(seconds) { const total=Math.max(0,Math.floor(seconds||0));if(total<60)return `${total}초`;if(total<3600)return `${Math.floor(total/60)}분 ${total%60}초`;return `${Math.floor(total/3600)}시간 ${Math.floor(total%3600/60)}분`; }
   function hasAllDivineGear() { return Object.keys(GEAR_LABEL).every(type=>S.gear.some(g=>g.type===type&&g.tier===4)); }
   function refreshWorldGateUnlock(announce=false) {
@@ -303,9 +312,9 @@
   }
 
   function stoneDropGrade(dungeonGrade,roll) {
-    if(dungeonGrade===0) return roll<.05?0:null;
-    if(dungeonGrade===1) return roll<.03?0:roll<.05?1:null;
-    return roll<.05?0:roll<.08?1:roll<.09?2:null;
+    if(dungeonGrade===0) return roll<.10?0:null;
+    if(dungeonGrade===1) return roll<.02?0:roll<.10?1:null;
+    return roll<.03?1:roll<.10?2:null;
   }
 
   function stoneDropGradeForPlace(place,grade,roll) {
@@ -320,16 +329,23 @@
     if(visual) { lootBurst(icon,Math.min(count,14)); playSfx("loot_rare"); }
   }
 
+  function resourceDropGrade(areaGrade,roll) {
+    if(areaGrade<=0)return 0;
+    if(areaGrade===1)return roll<.35?1:0;
+    return roll<(20/55)?2:1;
+  }
+
   function dropResource(hpRatio, at, visual=true) {
     const kind=PLACE_RESOURCE[S.place]; let grade=0, count=1;
     if(S.grade===0) {
       const center=1+Math.round(hpRatio*8);
       count=Math.max(1,Math.min(10,center+Math.floor(rand()*5)-2));
     } else if(S.grade===1) {
-      if(rand()<.35){grade=1;count=1+Math.floor(rand()*10);} else {count=10+Math.floor(rand()*21);}
+      grade=resourceDropGrade(S.grade,rand());
+      count=grade===1?1+Math.floor(rand()*10):10+Math.floor(rand()*21);
     } else {
-      const r=rand();
-      if(r<.2){grade=2;count=1+Math.floor(rand()*10);} else if(r<.55){grade=1;count=10+Math.floor(rand()*21);} else {count=30+Math.floor(rand()*21);}
+      grade=resourceDropGrade(S.grade,rand());
+      count=grade===2?1+Math.floor(rand()*10):10+Math.floor(rand()*21);
     }
     S.res[kind][grade]=capped(S.res[kind][grade]+count);
     const icon=resourceIcon(kind,grade);
@@ -397,8 +413,7 @@
     if(S.hp<=0&&!handleExhaustion(simulated,at)) { S.auto=false; S.fishState=null; if(!simulated){toast(EXHAUSTED_MESSAGE);playSfx("exhausted");render();persist();} return; }
     depleteOneHp(simulated,at);
     const duration=S.fishState.baseDuration??S.fishState.duration;
-    const rodTier=equipped("rod")?.tier??0, probs=ROD_PROBS[rodTier], roll=rand()*100;
-    let sum=0,index=0; for(;index<probs.length;index++){sum+=probs[index];if(roll<sum)break;} index=Math.min(index,5);
+    const rodTier=equipped("rod")?.tier??0, probs=ROD_PROBS[rodTier], index=weightedIndex(probs,rand());
     const chance3=Math.max(0,Math.min(1,(duration-5)/20));
     const count=rand()<chance3*.45?3:rand()<.45?2:1;
     const name=FISH[index], icon=fishIcon(name);
@@ -594,7 +609,7 @@
     const hpMax=maxHp(),hpNow=Math.max(0,Math.floor(S.hp)),hpPercent=Math.max(0,Math.min(100,hpNow/hpMax*100));
     dom.level.textContent=`Lv.${S.lv}`; dom.hp.textContent=`${hpNow.toLocaleString()} / ${hpMax.toLocaleString()}`;dom.hpFill.style.width=`${hpPercent}%`;dom.hpMeter.setAttribute("aria-valuemax",String(hpMax));dom.hpMeter.setAttribute("aria-valuenow",String(hpNow));
     dom.attack.textContent=totalAttack().toLocaleString(); dom.place.textContent=currentPlaceName();
-    dom.xpFill.style.width=`${S.lv>=100?100:S.xp/needXp()*100}%`; dom.xpText.textContent=S.lv>=100?"MAX":`${S.xp.toLocaleString()} / ${needXp().toLocaleString()}`;
+    dom.xpFill.style.width=`${S.lv>=100?100:S.xp/needXp()*100}%`; dom.xpText.textContent=S.lv>=100?"MAX":`${compactXp(S.xp)} / ${compactXp(needXp())}`;
     const gearSlots=Object.keys(GEAR_LABEL).map(type=>{
       const g=equipped(type); return g?`<div class="equip-slot" title="${TIERS[g.tier]} ${GEAR_LABEL[type]}"><img src="${gearIcon(g)}" alt="${GEAR_LABEL[type]}"><small>${GEAR_LABEL[type]}</small>${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div>`:`<div class="equip-slot empty"><small>${GEAR_LABEL[type]} 없음</small></div>`;
     }).join("");
@@ -690,7 +705,7 @@
 
   function renderTier({place}) {
     setOverlayHeader(`${PLACE_LABEL[place]} 선택`,"등급이 높을수록 강한 장비가 필요합니다");
-    dom.overlayContent.innerHTML=`<div class="tier-grid">${[0,1,2].map(grade=>`<button class="tier-option ${["low","mid","high"][grade]}" data-do="travel" data-place="${place}" data-grade="${grade}"><img src="assets/targets/${place==="forest"?"tree":place==="mine"?"ore":"monster"}_${["low","mid","high"][grade]}.png" alt=""><span><strong>${GRADES[grade]} ${PLACE_LABEL[place]}</strong><small>HP ${TARGET_STATS[grade].min.toLocaleString()}~${TARGET_STATS[grade].max.toLocaleString()} · 방어력 ${TARGET_STATS[grade].def.toLocaleString()} · EXP ${TARGET_STATS[grade].xp.toLocaleString()}</small></span></button>`).join("")}</div>`;
+    dom.overlayContent.innerHTML=`<div class="tier-grid">${[0,1,2].map(grade=>`<button class="tier-option ${["low","mid","high"][grade]}" data-do="travel" data-place="${place}" data-grade="${grade}"><img src="assets/targets/${place==="forest"?"tree":place==="mine"?"ore":"monster"}_${["low","mid","high"][grade]}.png" alt=""><span><strong>${GRADES[grade]} ${PLACE_LABEL[place]}</strong><small>HP ${TARGET_STATS[grade].min.toLocaleString()}~${TARGET_STATS[grade].max.toLocaleString()} · 방어력 ${TARGET_STATS[grade].def.toLocaleString()} · EXP ${compactXp(TARGET_STATS[grade].xp)}</small></span></button>`).join("")}</div>`;
   }
 
   function renderWorkshop() {
@@ -1008,6 +1023,9 @@
       handleExhaustion,
       stoneDropGrade,
       stoneDropGradeForPlace,
+      resourceDropGrade,
+      compactXp,
+      weightedIndex,
       totalAttack,
       settleOffline,
       workAction,
@@ -1035,7 +1053,7 @@
       startEnding,
       finalizeEnding,
       setMenuOpen,
-      constants:{MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,HOUSES,RECIPES},
+      constants:{APP_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES},
     };
   }
 
