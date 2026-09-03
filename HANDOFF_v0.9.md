@@ -116,12 +116,12 @@
 
 ## 검증 결과
 
-2026-09-02 기준:
+2026-09-03 기준:
 
 - `node --check game.js`: 통과
 - `node tools/test_game.js`: 통과
 - `node tools/prepare_dist.js`: 통과
-- `python tools/validate_project.py`: 602개 검사 통과
+- `python tools/validate_project.py`: 613개 검사 통과
 - `package.json`, `tauri.conf.json`: JSON 파싱 통과
 - GitHub Windows 워크플로: YAML 파싱 통과
 - 이미지 22개 배경과 모든 정규화 에셋: 파일·해상도·디코딩 검사 통과
@@ -155,6 +155,8 @@
 - Android: `BUILD_ANDROID.bat`
 - Windows 자동 빌드: `.github/workflows/windows-build.yml`
 - Android ARM64 최적화·테스트 서명 APK 빌드: `.github/workflows/android-build.yml`
+
+Android 워크플로의 키는 실기기 QA용으로 매 실행마다 새로 생성합니다. 이전 테스트 APK와 서명이 달라 업데이트 설치가 거부되면 기존 앱을 제거하고 설치하며, 스토어 배포에서는 고정 릴리스 키를 GitHub Secrets로 제공해야 합니다.
 
 첫 실기기 빌드에서는 다음을 확인합니다.
 

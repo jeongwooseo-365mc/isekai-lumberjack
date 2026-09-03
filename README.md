@@ -64,6 +64,8 @@ npm run android:build
 
 GitHub 저장소의 **Actions** 탭에서 실행 결과를 열고 **Artifacts**에서 파일을 받을 수 있습니다. 두 워크플로 모두 필요할 때 `Run workflow`로 수동 재실행할 수 있습니다.
 
+GitHub 빌드의 Android APK는 실기기 QA를 위한 임시 테스트 키로 서명됩니다. 워크플로를 다시 실행하면 키도 바뀌므로 이전 테스트 APK 위에 업데이트 설치가 거부될 때는 기존 앱을 제거한 뒤 설치합니다. 스토어 배포 전에는 소유자가 보관하는 고정 릴리스 키를 GitHub Secrets에 연결해야 합니다.
+
 ## 저장과 종료 중 진행
 
 - Tauri 앱: 운영체제 앱 데이터 폴더의 일반 진행 `save.json`과 엔딩 징표 `meta.json`
@@ -100,6 +102,7 @@ tools/prepare_dist.js       런타임 dist 생성
 tools/test_game.js          핵심 게임 로직 스모크 테스트
 GAME_DESIGN_MASTER_v0.9.md  최신 확정 기획
 HANDOFF_v0.9.md             구현·에셋·검증 인수인계
+BUILD_REPORT_v0.9.md        실제 Windows·Android 빌드 결과와 체크섬
 ```
 
 ## 검증
