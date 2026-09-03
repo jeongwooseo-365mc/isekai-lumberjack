@@ -1490,7 +1490,7 @@ isekai_lumberjack_v0.1.zip
 ## 31.2 GitHub와 네이티브 빌드
 
 - 소스는 `jeongwooseo-365mc/isekai-lumberjack` 저장소의 `main` 브랜치를 기준으로 관리한다.
-- `main` 코드 푸시 또는 수동 실행 시 Windows 설치 파일과 Android 범용 APK를 각각 GitHub Actions 아티팩트로 생성한다.
+- `main` 코드 푸시 또는 수동 실행 시 Windows NSIS 설치 파일과 자동 서명 Android 디버그 범용 APK를 각각 GitHub Actions 아티팩트로 생성한다.
 - Android 프로젝트 생성물 `src-tauri/gen/`, 런타임 복제본 `dist/`, 음원 중간 산출물 `build/`은 재생성 가능하므로 Git에서 제외한다.
 
 ## 31.3 배포 상태

@@ -8,7 +8,7 @@
 - 장착 장비를 최대 72px의 큰 2열 아이콘으로 배치하고 다섯 번째 슬롯은 가운데 정렬
 - 로그 글자·아이콘 크기는 유지하면서 가로 공간을 늘려 줄바꿈을 줄임
 - 로그·마이페이지·제작소 등 스크롤 가능한 영역의 흰 스크롤바만 숨기고 터치 스크롤은 유지
-- Windows 설치 파일과 Android 범용 APK를 자동 생성하는 GitHub Actions 추가
+- Windows NSIS 설치 파일과 테스트폰에 바로 설치 가능한 Android 디버그 범용 APK를 자동 생성하는 GitHub Actions 추가
 
 v0.8의 접이식 메뉴, 대상 체력 HUD, 절대 시각 방치 정산, 50% 기본 음량, 자동 저장, 전 지역 강화돌 확률은 그대로 유지합니다.
 
@@ -59,8 +59,8 @@ npm run android:build
 
 `main` 브랜치에 코드가 올라오면 다음 워크플로가 함께 실행됩니다.
 
-- `Build Windows`: MSI/NSIS Windows 설치 파일 생성
-- `Build Android APK`: Android 7.0 이상을 대상으로 하는 범용 APK 생성
+- `Build Windows`: WiX 의존성 없이 NSIS Windows `setup.exe` 생성
+- `Build Android APK`: Android 7.0 이상을 대상으로 하는 자동 서명 디버그 범용 APK 생성
 
 GitHub 저장소의 **Actions** 탭에서 실행 결과를 열고 **Artifacts**에서 파일을 받을 수 있습니다. 두 워크플로 모두 필요할 때 `Run workflow`로 수동 재실행할 수 있습니다.
 
