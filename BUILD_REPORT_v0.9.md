@@ -9,7 +9,7 @@
 
 | 대상 | 최종 파일 | 크기 | SHA-256 |
 |---|---|---:|---|
-| Windows x64 | `isekai-lumberjack-v0.9-windows-x64-setup.exe` | 83,509,954 bytes | `ec61b8b9c720ea6746a225858a5a839e226619661be3706740b503ec78727c9a` |
+| Windows x64 | `isekai-lumberjack-v0.9-windows-x64-setup.exe` | 83,510,187 bytes | `ec61b8b9c720ea6746a225858a5a839e226619661be3706740b503ec78727c9a` |
 | Android ARM64 | `isekai-lumberjack-v0.9-android-arm64.apk` | 94,041,494 bytes | `0d2d36caf35a984a02adbf61c074e9e65c5f4a79fab512ad20909ee2cfc88a2c` |
 
 Windows 결과는 NSIS 자체 압축 해제 설치 프로그램이며 ZIP 무결성과 PE 실행 파일 형식을 확인했습니다. Android 결과는 릴리스 최적화 ARM64 APK이며, 빌드 워크플로에서 `zipalign` 후 테스트 키로 서명하고 `apksigner verify --verbose --print-certs`를 통과했습니다. APK ZIP 구조 검사도 오류 없이 통과했고 네이티브 라이브러리가 `arm64-v8a`에만 포함됨을 확인했습니다.
