@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#14100b">
+  <title>이세계로 소환되어버린 나무꾼</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <main class="game-shell">
+      <section id="introScreen" class="screen intro-screen active" aria-label="인트로">
+        <div class="intro-shade"></div>
+        <div class="intro-content">
+          <img class="logo-mark" src="assets/ui/logo_mark.png" alt="">
+          <h1>이세계로 소환되어버린<br><strong>나무꾼</strong></h1>
+          <p>믿을 것은 몸뚱이와 손에 쥔 연장뿐.<br>베고, 캐고, 싸우고, 낚으며 살아남으십시오.</p>
+          <button id="startButton" class="primary-button">게임 시작</button>
+          <div id="saveSummary" class="save-summary"></div>
+          <div class="intro-actions">
+            <button id="resetButton" class="text-button danger">세이브 초기화</button>
+            <button id="introQuitButton" class="text-button">게임 종료</button>
+          </div>
+          <div id="versionResetNote" class="version-note"></div>
+        </div>
+      </section>
+
+      <section id="storyScreen" class="screen story-screen" aria-label="시작 이야기">
+        <img id="storyImage" class="story-image" src="assets/bg/story_intro1.png" alt="나무꾼의 시작 이야기">
+        <div id="storyBlackout" class="story-blackout" aria-hidden="true"></div>
+        <div class="story-vignette" aria-hidden="true"></div>
+      </section>
+
+      <section id="bossPreludeScreen" class="screen boss-prelude-screen" aria-label="최종 전투 도전">
+        <div id="bossChallenge" class="boss-challenge hidden">
+          <p>나를 베고 가라.</p>
+          <button id="bossStartButton" class="primary-button">최종 전투 시작</button>
+        </div>
+      </section>
+
+      <section id="playScreen" class="screen play-screen" aria-label="게임">
+        <div id="scene" class="scene">
+          <div class="scene-shade"></div>
+          <div id="placeTitle" class="place-title"></div>
+          <button id="menuToggle" class="menu-toggle" type="button" aria-label="메뉴 펼치기" aria-controls="mainMenu" aria-expanded="false"><span aria-hidden="true">☰</span><b>메뉴</b></button>
+          <nav id="mainMenu" class="main-menu" aria-label="주 메뉴" aria-hidden="true">
+            <button data-menu="map" aria-label="지도"><img src="assets/ui/map.png" alt=""><span>지도</span></button>
+            <button data-menu="workshop" aria-label="제작소"><img src="assets/ui/workshop.png" alt=""><span>제작소</span></button>
+            <button data-menu="realestate" aria-label="부동산"><img src="assets/ui/realestate.png" alt=""><span>부동산</span></button>
+            <button data-menu="cooking" aria-label="요리"><img src="assets/ui/cooking.png" alt=""><span>요리</span></button>
+            <button data-menu="enhance" aria-label="강화"><img src="assets/ui/enhance.png" alt=""><span>강화</span></button>
+            <button data-menu="profile" aria-label="마이페이지"><img src="assets/ui/profile.png" alt=""><span>마이</span></button>
+            <button id="autoButton" aria-label="오토"><img src="assets/ui/auto.png" alt=""><span>오토</span><b id="autoState">OFF</b></button>
+            <button data-menu="settings" aria-label="설정"><img src="assets/ui/settings.png" alt=""><span>설정</span></button>
+          </nav>
+
+          <div id="targetHud" class="target-hud hidden">
+            <b id="targetName"></b>
+            <div class="meter red"><i id="targetHpFill"></i></div>
+            <span id="targetHpText"></span>
+          </div>
+          <div id="targetArea" class="target-area hidden">
+            <img id="targetImage" class="target-image" alt="">
+          </div>
+
+          <img id="character" class="character" alt="주인공">
+          <div id="fishingLine" class="fishing-line hidden" aria-hidden="true"></div>
+          <img id="bobber" class="bobber hidden" src="assets/sprites/fishing/bobber.png" alt="">
+          <div id="fishingStatus" class="fishing-status hidden"></div>
+          <div id="tapHint" class="tap-hint"></div>
+          <div id="lootBurst" class="loot-burst"></div>
+          <div id="hitFlash" class="hit-flash"></div>
+        </div>
+
+        <section class="hud">
+          <div class="xp-row">
+            <b id="levelLabel">Lv.1</b>
+            <div class="meter xp"><i id="xpFill"></i></div>
+            <span id="xpText"></span>
+          </div>
+          <div class="hud-body">
+            <div class="status-panel">
+              <div class="hp-stat-row">
+                <span>체력</span>
+                <div id="hpMeter" class="hp-meter" role="progressbar" aria-label="체력" aria-valuemin="0">
+                  <i id="hpFill"></i><b id="hpStat"></b>
+                </div>
+              </div>
+              <div class="stat-row"><span>총공격력</span><b id="attackStat"></b></div>
+              <div class="stat-row"><span>장소</span><b id="placeStat"></b></div>
+              <div id="equippedGrid" class="equipped-grid"></div>
+            </div>
+            <div id="logPanel" class="log-panel" aria-label="획득 로그"></div>
+          </div>
+        </section>
+      </section>
+
+      <section id="endingScreen" class="screen ending-screen" aria-label="엔딩">
+        <div id="endingImages" class="ending-images" aria-hidden="true">
+          <img id="endingReturnImage" class="ending-image" src="assets/bg/ending_return.png" alt="동굴을 지나 원래 세계로 나온 나무꾼">
+          <img id="endingFinalImage" class="ending-image" src="assets/bg/ending.png" alt="원래 세계의 숲을 바라보는 나무꾼">
+        </div>
+        <div class="ending-vignette" aria-hidden="true"></div>
+        <div class="ending-credits-window">
+          <div id="endingCreditsTrack" class="ending-credits-track">
+            <p>나무꾼은 알수 없는 문을 열고 어둠속을 지나갔다.</p>
+            <p>캄캄한 동굴속 끝에 익숙한 빛이 새어나왔다.</p>
+            <p>원래 세계의 터널로 돌아왔다.</p>
+            <p>그는 익숙한 듯 숲을 바라보며 도끼를 어깨에 걸었다.</p>
+            <p>세계는 바뀌었지만, 할 일은 같았다.</p>
+            <p>오늘도 나무를 벤다. 다를 게 있나?</p>
+            <p class="ending-thanks">-이세계로 소환되어버린 나무꾼을 플레이해주셔서 감사합니다-</p>
+          </div>
+        </div>
+        <div id="endingActions" class="ending-actions hidden">
+          <button id="endingQuitButton" class="primary-button">게임 종료</button>
+          <button id="endingIntroButton" class="secondary-button">인트로로</button>
+        </div>
+      </section>
+
+      <section id="overlay" class="overlay" aria-hidden="true">
+        <div class="overlay-panel">
+          <header class="overlay-header">
+            <button id="backButton" class="back-button" aria-label="뒤로가기">‹</button>
+            <div><h2 id="overlayTitle"></h2><p id="overlaySubtitle"></p></div>
+            <button id="closeButton" class="close-button" aria-label="닫기">×</button>
+          </header>
+          <div id="overlayContent" class="overlay-content"></div>
+        </div>
+      </section>
+
+      <div id="toast" class="toast" role="status"></div>
+      <div id="confirmDialog" class="dialog-backdrop" aria-hidden="true">
+        <div class="dialog">
+          <h3 id="dialogTitle"></h3>
+          <p id="dialogMessage"></p>
+          <div class="dialog-actions">
+            <button id="dialogCancel" class="secondary-button">취소</button>
+            <button id="dialogConfirm" class="primary-button">확인</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

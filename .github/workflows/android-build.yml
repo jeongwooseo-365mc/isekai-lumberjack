@@ -1,0 +1,54 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Select installed Android NDK
+        shell: bash
+        run: echo "NDK_HOME=$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: npm install
+      - name: Verify game logic
+        run: node tools/test_game.js
+      - name: Prepare web assets
+        run: npm run prepare:web
+      - name: Initialize Android project
+        run: npx tauri android init --ci
+      - name: Build universal APK
+        uses: tauri-apps/tauri-action@v1
+        with:
+          mobile: android
+          args: --ci --apk
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: isekai-lumberjack-v0.9-android-[bundle]

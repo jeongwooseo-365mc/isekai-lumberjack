@@ -1,0 +1,15 @@
+[package]
+name = "isekai_lumberjack"
+version = "0.9.0"
+description = "이세계로 소환되어버린 나무꾼"
+authors = ["game"]
+edition = "2021"
+[lib]
+name = "isekai_lumberjack_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,21 @@
+{
+  "name": "isekai-lumberjack",
+  "version": "0.9.0",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "prepare:web": "node tools/prepare_dist.js",
+    "predev": "npm run prepare:web",
+    "dev": "tauri dev",
+    "prebuild": "npm run prepare:web",
+    "build": "tauri build",
+    "android:init": "tauri android init",
+    "preandroid:dev": "npm run prepare:web",
+    "android:dev": "tauri android dev",
+    "preandroid:build": "npm run prepare:web",
+    "android:build": "tauri android build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.4"
+  }
+}
