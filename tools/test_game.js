@@ -105,6 +105,8 @@ setTimeout(async()=>{
 
     state=game.freshState();game.replaceState(state);state.place="home";state.resting=true;state.auto=true;state.hp=0;state.lastSeen=Date.now()-100000;state.restProgress=0;
     game.settleOffline(Date.now());assert.equal(state.hp,100,"home offline recovery follows one-second ticks");
+    state=game.freshState();game.replaceState(state);state.place="home";state.resting=true;state.auto=true;state.house=4;state.hp=0;const mansionNow=Date.now();state.lastSeen=mansionNow-3000;game.settleOffline(mansionNow);assert.equal(state.hp,300,"every house uses its configured heal amount each second");
+    state=game.freshState();game.replaceState(state);state.place="home";state.resting=true;state.auto=true;state.hp=0;const quietTickNow=Date.now();state.lastSeen=quietTickNow-1000;game.settleOffline(quietTickNow);assert.equal(state.hp,1);assert.equal(state.logs.length,0,"one-second foreground recovery does not flood the activity log");
     state=game.freshState();game.replaceState(state);state.place="home";state.resting=false;state.hp=0;state.lastSeen=Date.now()-100000;
     game.settleOffline(Date.now());assert.equal(state.hp,0,"home recovery pauses when rest pose is off");
     game.toggleAuto();assert.equal(state.resting,true,"home auto button starts persistent rest pose");assert.equal(state.auto,true);assert(element("fishingStatus").textContent.includes("1초당"));assert(!element("fishingStatus").textContent.includes("다음 회복"),"rest status has no countdown");game.toggleResting();assert.equal(state.resting,false,"second toggle ends rest pose");

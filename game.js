@@ -423,7 +423,7 @@
       if(ticks>0 && S.hp<maxHp()) {
         const before=S.hp; S.hp=Math.min(maxHp(),S.hp+ticks*HOUSES[S.house].heal);
         const gained=S.hp-before;
-        if(gained>0) addLog(`${HOUSES[S.house].name}에서 체력 ${gained} 회복.`,"assets/ui/realestate.png","good",now);
+        if(gained>0&&(elapsed>1||S.hp>=maxHp()))addLog(`${HOUSES[S.house].name}에서 체력 ${gained} 회복.`,"assets/ui/realestate.png","good",now);
       }
     } else if(S.place==="pond") {
       if(S.auto) {
