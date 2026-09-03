@@ -426,8 +426,7 @@
         if(gained>0) addLog(`${HOUSES[S.house].name}에서 체력 ${gained} 회복.`,"assets/ui/realestate.png","good",now);
       }
     } else if(S.place==="pond") {
-      if(!S.auto) S.fishState=null;
-      else {
+      if(S.auto) {
         let cursor=from, guard=0;
         if(!S.fishState) startFishing(true,cursor);
         while(S.fishState && S.fishState.endAt<=now && guard++<200000) {

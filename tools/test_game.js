@@ -98,7 +98,7 @@ setTimeout(async()=>{
     assert(Object.values(state.fish).reduce((a,b)=>a+b,0)>=1,"fishing grants materials");
 
     state=game.freshState();game.replaceState(state);state.place="pond";state.hp=2;state.auto=false;
-    element("scene").click();assert(state.fishState,"a direct scene tap starts manual fishing");assert.equal(state.auto,false,"manual fishing does not enable auto");
+    element("scene").click();assert(state.fishState,"a direct scene tap starts manual fishing");assert.equal(state.auto,false,"manual fishing does not enable auto");const manualEndAt=state.fishState.endAt;state.lastSeen=Date.now()-1000;game.settleOffline(Date.now());assert.equal(state.fishState.endAt,manualEndAt,"one-second settlement must not erase manual fishing");
 
     state=game.freshState();game.replaceState(state);state.place="pond";state.hp=3;state.auto=true;state.lastSeen=Date.now()-300000;
     game.settleOffline(Date.now());assert.equal(state.hp,0,"offline auto fishing consumes HP");assert.equal(state.auto,false,"fishing auto releases at zero HP");assert.equal(state.xp,0);
