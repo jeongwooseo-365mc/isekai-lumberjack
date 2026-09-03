@@ -196,8 +196,9 @@ def main() -> int:
     windows_workflow = (ROOT / ".github/workflows/windows-build.yml").read_text(encoding="utf-8")
     android_workflow = (ROOT / ".github/workflows/android-build.yml").read_text(encoding="utf-8")
     check("tauri-apps/tauri-action@v1" in windows_workflow and "uploadWorkflowArtifacts: true" in windows_workflow, "Windows workflow must publish build artifacts")
-    check("mobile: android" in android_workflow and "args: --ci --debug --apk" in android_workflow, "Android workflow must build an installable debug APK")
-    check("aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android" in android_workflow, "Android workflow must install all Rust mobile targets")
+    check("npx tauri android build --ci --apk --target aarch64" in android_workflow, "Android workflow must build an optimized ARM64 APK")
+    check("targets: aarch64-linux-android" in android_workflow, "Android workflow must install the ARM64 Rust target")
+    check("apksigner\" verify --verbose --print-certs" in android_workflow and "actions/upload-artifact@v4" in android_workflow, "Android workflow must sign, verify, and publish the APK")
     tauri_config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     check(tauri_config.get("bundle", {}).get("targets") == ["nsis"], "Windows bundle must avoid WiX and build the NSIS setup executable")
 

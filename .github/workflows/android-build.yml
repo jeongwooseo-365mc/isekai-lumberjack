@@ -30,7 +30,7 @@ jobs:
       - uses: android-actions/setup-android@v3
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -45,10 +45,43 @@ jobs:
         run: npm run prepare:web
       - name: Initialize Android project
         run: npx tauri android init --ci
-      - name: Build installable debug APK
-        uses: tauri-apps/tauri-action@v1
+      - name: Build optimized ARM64 APK
+        run: npx tauri android build --ci --apk --target aarch64
+      - name: Sign and verify test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          unsigned_apk="$(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*-unsigned.apk' -print -quit)"
+          test -n "$unsigned_apk"
+
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$build_tools/zipalign"
+          test -x "$build_tools/apksigner"
+
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/isekai-lumberjack-test.keystore" \
+            -storepass android \
+            -keypass android \
+            -alias androiddebugkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Isekai Lumberjack Test,O=Isekai Lumberjack,C=KR"
+
+          mkdir -p release
+          "$build_tools/zipalign" -f -p 4 "$unsigned_apk" "$RUNNER_TEMP/isekai-lumberjack-aligned.apk"
+          "$build_tools/apksigner" sign \
+            --ks "$RUNNER_TEMP/isekai-lumberjack-test.keystore" \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out release/isekai-lumberjack-v0.9-android-arm64.apk \
+            "$RUNNER_TEMP/isekai-lumberjack-aligned.apk"
+          "$build_tools/apksigner" verify --verbose --print-certs release/isekai-lumberjack-v0.9-android-arm64.apk
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
         with:
-          mobile: android
-          args: --ci --debug --apk
-          uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: isekai-lumberjack-v0.9-android-debug-[bundle]
+          name: isekai-lumberjack-v0.9-android-arm64-apk
+          path: release/isekai-lumberjack-v0.9-android-arm64.apk
+          if-no-files-found: error
+          retention-days: 90

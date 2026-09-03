@@ -8,7 +8,7 @@
 - 장착 장비는 최대 72px 크기의 2열 슬롯으로 배치하고 다섯 번째 갑옷 슬롯은 가운데에 둡니다.
 - 로그는 본문 13px·아이콘 32px·항목 최소 높이 46px을 유지하면서 더 넓은 가로 공간을 사용합니다.
 - 로그, 오버레이, 가로 탭, 마이페이지 장비함은 스크롤 기능을 유지하되 브라우저/WebView 스크롤바를 표시하지 않습니다.
-- `main` 푸시와 수동 실행 시 Windows NSIS 설치 파일과 자동 서명 Android 디버그 범용 APK를 만드는 GitHub Actions를 제공합니다.
+- `main` 푸시와 수동 실행 시 Windows NSIS 설치 파일과 ARM64 최적화·테스트 서명 Android APK를 만드는 GitHub Actions를 제공합니다.
 - 버전과 저장 키는 `0.9.0`, `isekai_lumberjack_save_v09`입니다.
 - 신규 게임은 배포 기본값인 레벨 1·재화 0을 유지합니다.
 
@@ -154,7 +154,7 @@
 - Windows: `BUILD_WINDOWS.bat`
 - Android: `BUILD_ANDROID.bat`
 - Windows 자동 빌드: `.github/workflows/windows-build.yml`
-- Android 자동 서명 디버그 범용 APK 빌드: `.github/workflows/android-build.yml`
+- Android ARM64 최적화·테스트 서명 APK 빌드: `.github/workflows/android-build.yml`
 
 첫 실기기 빌드에서는 다음을 확인합니다.
 
