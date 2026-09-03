@@ -115,10 +115,10 @@ img { -webkit-user-drag: none; }
 .hp-meter b { position: absolute; inset: 0; display: grid; place-items: center; color: #fff7e5; font-size: 10px; line-height: 1; text-shadow: 0 1px 3px #000,0 0 2px #000; }
 .equipped-grid { display: grid; grid-template-columns: repeat(2,minmax(0,72px)); justify-content: center; gap: 5px; margin-top: 6px; }
 .equip-slot { position: relative; min-width: 0; width: 100%; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border: 1px solid #80643d; border-radius: 8px; background: radial-gradient(circle,#30271b,#18140f 74%); box-shadow: inset 0 1px #fff1; }
-.equip-slot:nth-child(5) { grid-column: 1 / -1; justify-self: center; width: min(72px,100%); }
 .equip-slot img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .equip-slot small { position: absolute; left: 3px; right: 3px; bottom: 2px; padding: 2px 3px; border-radius: 4px; background: #000c; font-size: 9px; line-height: 1.05; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .enh-badge { position: absolute; right: 2px; top: 2px; padding: 2px 4px; border-radius: 4px; background: #2c65a7; color: #fff; font-size: 9px; font-weight: 900; }
+.food-count-badge { position: absolute; left: 3px; top: 3px; padding: 2px 4px; border-radius: 5px; background: #325d35e8; color: #eaffcf; font-size: 9px; font-style: normal; font-weight: 900; text-shadow: 0 1px 2px #000; }
 .log-panel { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 7px 10px max(28px,env(safe-area-inset-bottom)); border-left: 1px solid #53442e; font-size: 13px; line-height: 1.5; }
 .log-entry { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 8px; align-items: center; min-height: 46px; padding: 7px 0; border-bottom: 1px solid #ffffff12; overflow-wrap: anywhere; }
 .log-entry img { width: 32px; height: 32px; object-fit: contain; }
@@ -167,7 +167,7 @@ img { -webkit-user-drag: none; }
 .map-area { position: relative; min-height: 72vh; border: 1px solid #765e3e; border-radius: 10px; overflow: hidden; background: url("assets/bg/map.png") center/cover; }
 .map-area::after { content: ""; position: absolute; inset: 0; background: linear-gradient(#0001, #0004); pointer-events: none; }
 .map-point { position: absolute; z-index: 2; padding: 7px 10px; border: 1px solid #dfb66a; border-radius: 18px; background: #17120ddd; box-shadow: 0 4px 10px #0009; font-size: 10px; font-weight: 900; }
-.map-point.home { left: 22%; top: 27%; transform: translate(-50%,-50%); }.map-point.forest { left: 18%; top: 52%; transform: translate(-50%,-50%); }.map-point.pond { left: 29%; top: 73%; transform: translate(-50%,-50%); }.map-point.mine { left: 76%; top: 38%; transform: translate(-50%,-50%); }.map-point.dungeon { left: 81%; top: 72%; transform: translate(-50%,-50%); }
+.map-point.home { left: 22%; top: 27%; transform: translate(-50%,-50%); }.map-point.forest { left: 18%; top: 52%; transform: translate(-50%,-50%); }.map-point.pond { left: 29%; top: 73%; transform: translate(-50%,-50%); }.map-point.mine { left: 76%; top: 38%; transform: translate(-50%,-50%); }.map-point.dungeon { left: 81%; top: 77%; transform: translate(-50%,-50%); }
 .map-point.world { left: 68%; top: 6%; transform: translate(-50%,-50%); border-color: #81d8ff; background: #254d72e8; box-shadow: 0 0 18px #66c9ff; white-space: nowrap; }
 .tier-grid { display: grid; gap: 8px; padding: 10px 0; }
 .tier-option { min-height: 86px; display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 9px; padding: 7px; border: 1px solid #705a3b; border-radius: 9px; background: #211c15; text-align: left; }
@@ -193,6 +193,7 @@ img { -webkit-user-drag: none; }
 .gear-inventory-box .item-list { margin: 6px; }
 .profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .profile-actions button { min-height: 44px; margin: 0; }
+.food-stack { color: #a9ef9d; font-style: normal; white-space: nowrap; }
 
 .story-screen { align-items: stretch; justify-content: stretch; background: #000; }
 .story-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.025); }

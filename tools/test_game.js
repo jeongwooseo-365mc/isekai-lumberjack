@@ -50,17 +50,26 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(state.version,"0.9.0");
+    assert.equal(state.version,"1.0.0");
     assert.equal(state.lv,1,"release build starts at level 1");
     assert.equal(state.hp,500,"release build starts at base HP 500");
     assert.equal(game.maxHp(),600,"shabby armor raises max HP to 600");
     for(const values of Object.values(state.res)) assert(values.every(v=>v===0));
     assert(state.stones.every(v=>v===0));
     assert(Object.values(state.fish).every(v=>v===0));
+    assert(state.foods.every(v=>v===0));
+    assert.equal(state.equippedFood,null);
     assert.equal(state.worldGateUnlocked,false,"release build starts with gate locked");
     assert.equal(state.settings.bgm,.5,"default BGM volume is 50%");
     assert.equal(state.settings.sfx,.5,"default SFX volume is 50%");
     assert.deepEqual(Array.from(game.constants.ROD_PROBS,row=>Array.from(row)),[[66,27,5,2,0,0],[50,20,15,9,5,1],[26,24,23,18,7,2],[12,12,30,30,12,4],[0,0,20,30,35,15]],"fishing probabilities remain unchanged");
+    assert.deepEqual(Array.from(game.constants.RECIPES,r=>({name:r.name,heal:r.heal,cost:{...r.cost}})),[
+      {name:"생선 수프",heal:200,cost:{해초:5,민어:1}},
+      {name:"해산물 스튜",heal:400,cost:{해초:20,조개:10,민어:5}},
+      {name:"구운 생선",heal:300,cost:{숭어:1,조개:5}},
+      {name:"연어 스테이크",heal:600,cost:{연어:1}},
+      {name:"고급 랍스터 정식",heal:1000,cost:{랍스터:1}},
+    ],"recipe healing and materials match v1.0 balance");
 
     state=game.freshState();game.replaceState(state);state.lv=90;const armor=state.gear.find(g=>g.type==="armor");armor.tier=4;armor.enh=4;
     assert.equal(game.maxHp(),11775,"Lv90 divine armor +4 max HP");
@@ -88,14 +97,17 @@ setTimeout(async()=>{
     game.completeFishing(true,state.fishState.endAt);assert.equal(state.hp,1,"catching costs one HP");assert.equal(state.xp,xp,"fishing grants no XP");
     assert(Object.values(state.fish).reduce((a,b)=>a+b,0)>=1,"fishing grants materials");
 
+    state=game.freshState();game.replaceState(state);state.place="pond";state.hp=2;state.auto=false;
+    element("scene").click();assert(state.fishState,"a direct scene tap starts manual fishing");assert.equal(state.auto,false,"manual fishing does not enable auto");
+
     state=game.freshState();game.replaceState(state);state.place="pond";state.hp=3;state.auto=true;state.lastSeen=Date.now()-300000;
     game.settleOffline(Date.now());assert.equal(state.hp,0,"offline auto fishing consumes HP");assert.equal(state.auto,false,"fishing auto releases at zero HP");assert.equal(state.xp,0);
 
     state=game.freshState();game.replaceState(state);state.place="home";state.resting=true;state.auto=true;state.hp=0;state.lastSeen=Date.now()-100000;state.restProgress=0;
-    game.settleOffline(Date.now());assert.equal(state.hp,10,"home offline recovery follows 10-second ticks");
+    game.settleOffline(Date.now());assert.equal(state.hp,100,"home offline recovery follows one-second ticks");
     state=game.freshState();game.replaceState(state);state.place="home";state.resting=false;state.hp=0;state.lastSeen=Date.now()-100000;
     game.settleOffline(Date.now());assert.equal(state.hp,0,"home recovery pauses when rest pose is off");
-    game.toggleAuto();assert.equal(state.resting,true,"home auto button starts persistent rest pose");assert.equal(state.auto,true);game.toggleResting();assert.equal(state.resting,false,"second toggle ends rest pose");
+    game.toggleAuto();assert.equal(state.resting,true,"home auto button starts persistent rest pose");assert.equal(state.auto,true);assert(element("fishingStatus").textContent.includes("1초당"));assert(!element("fishingStatus").textContent.includes("다음 회복"),"rest status has no countdown");game.toggleResting();assert.equal(state.resting,false,"second toggle ends rest pose");
 
     assert.equal(game.stoneDropGrade(0,.049),0);assert.equal(game.stoneDropGrade(0,.05),null);
     assert.equal(game.stoneDropGrade(1,.029),0);assert.equal(game.stoneDropGrade(1,.03),1);assert.equal(game.stoneDropGrade(1,.05),null);
@@ -104,8 +116,16 @@ setTimeout(async()=>{
     assert.equal(game.stoneDropGradeForPlace("pond",2,.001),null,"non-combat areas never drop stones");
 
     state=game.freshState();game.replaceState(state);state.place="home";state.resting=true;state.auto=true;state.hp=0;const clockNow=Date.now();state.lastSeen=clockNow-5500;state.restProgress=0;
-    assert.equal(game.settleOffline(clockNow),5,"absolute clock settles complete elapsed seconds");assert.equal(state.restProgress,5);assert.equal(state.lastSeen,clockNow-500,"clock keeps the sub-second remainder");
-    assert.equal(game.settleOffline(clockNow+500),1,"the retained remainder is reconciled on the next lifecycle tick");assert.equal(state.restProgress,6);
+    assert.equal(game.settleOffline(clockNow),5,"absolute clock settles complete elapsed seconds");assert.equal(state.hp,5);assert.equal(state.restProgress,0);assert.equal(state.lastSeen,clockNow-500,"clock keeps the sub-second remainder");
+    assert.equal(game.settleOffline(clockNow+500),1,"the retained remainder is reconciled on the next lifecycle tick");assert.equal(state.hp,6);assert.equal(state.restProgress,0);
+
+    state=game.freshState();game.replaceState(state);state.fish["해초"]=5;state.fish["민어"]=1;state.hp=125;
+    game.selectRecipe(0);game.cookSelected();assert.equal(state.foods[0],1,"cooking creates one stored food");assert.equal(state.hp,125,"cooking does not immediately heal");assert.equal(state.fish["해초"],0);assert.equal(state.fish["민어"],0);assert(state.logs.at(-1).text.includes("생선 수프 1개를 만들었습니다."));
+    state.equippedFood=0;state.place="forest";state.auto=true;state.hp=1;state.target={hp:999999,max:999999,def:0,xp:20};game.workAction(true,1000);
+    assert.equal(state.hp,200,"equipped food automatically restores HP at zero");assert.equal(state.foods[0],0,"automatic eating consumes one food");assert.equal(state.equippedFood,null,"empty food stack clears the equipped slot");assert.equal(state.auto,true,"auto continues after automatic food recovery");
+
+    state=game.freshState();game.replaceState(state);state.foods[3]=2;state.hp=0;game.selectFood(3);game.equipSelectedFood();assert.equal(state.equippedFood,3);game.renderProfile();assert(element("overlayContent").innerHTML.includes("연어 스테이크 x2"));assert(element("overlayContent").innerHTML.includes("즉시먹기"));game.renderHud();assert.equal((element("equippedGrid").innerHTML.match(/class="equip-slot/g)||[]).length,6,"HUD includes five gear slots and one food slot");assert(element("equippedGrid").innerHTML.includes("x2"));
+    game.eatSelectedFood();assert.equal(state.foods[3],1);assert.equal(state.hp,600,"immediate eating respects maximum HP");
 
     state=game.freshState();game.replaceState(state);state.res.wood[0]=9998;game.normalizeInventory();state.res.wood[0]+=50;game.normalizeInventory();assert.equal(state.res.wood[0],9999,"resources cap at 9999");
 
@@ -119,13 +139,13 @@ setTimeout(async()=>{
 
     game.renderWorkshop();assert.equal(element("overlayTitle").textContent,"제작소");assert(element("overlayContent").innerHTML.includes("제작하기"));
     game.renderEstate();assert.equal(element("overlayTitle").textContent,"부동산");
-    game.renderCooking();assert(element("overlayContent").innerHTML.includes("만들어 먹기"));
+    game.renderCooking();assert(element("overlayContent").innerHTML.includes("요리하기"));assert(!element("overlayContent").innerHTML.includes("만들어 먹기"));
     game.renderEnhance();assert(element("overlayContent").innerHTML.includes("낚싯대"),"rod is enhanceable");
     game.renderProfile();assert(element("overlayContent").innerHTML.includes("/20"),"profile shows gear capacity");
     game.setMenuOpen(true);assert(element("mainMenu").classList.contains("open"),"mobile menu expands on demand");assert(element("scene").classList.contains("menu-open"),"target HUD receives menu avoidance state");game.setMenuOpen(false);
     game.renderSettings();assert(!element("overlayContent").innerHTML.includes("지금 저장"),"manual save button is removed");assert(element("overlayContent").innerHTML.includes("자동 저장"));
     game.replaceMeta({endingSeen:true});state=game.freshState();game.replaceState(state);assert(state.gear.some(g=>g.special),"future games include the permanent Easter egg");game.renderProfile();assert(element("overlayContent").innerHTML.includes("이스터에그 보유"));
-    localStorage.setItem("isekai_lumberjack_save_v09","temporary ending save");const actions=element("endingActions");actions.classList.add("hidden");await game.finalizeEnding(actions);assert.equal(localStorage.getItem("isekai_lumberjack_save_v09"),null,"completed ending deletes ordinary save");assert.equal(JSON.parse(localStorage.getItem("isekai_lumberjack_meta")).endingSeen,true,"ending trophy flag persists separately");assert(!actions.classList.contains("hidden"),"ending actions appear after cleanup");
+    localStorage.setItem("isekai_lumberjack_save_v10","temporary ending save");const actions=element("endingActions");actions.classList.add("hidden");await game.finalizeEnding(actions);assert.equal(localStorage.getItem("isekai_lumberjack_save_v10"),null,"completed ending deletes ordinary save");assert.equal(JSON.parse(localStorage.getItem("isekai_lumberjack_meta")).endingSeen,true,"ending trophy flag persists separately");assert(!actions.classList.contains("hidden"),"ending actions appear after cleanup");
     console.log("game logic smoke tests: OK");
     process.exit(0);
   } catch(error) { console.error(error.stack||error); process.exit(1); }

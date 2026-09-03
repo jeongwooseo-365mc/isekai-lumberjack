@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate runtime assets, mobile layout rules, and packaging inputs for v0.9."""
+"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.0."""
 
 from __future__ import annotations
 
@@ -118,6 +118,7 @@ def main() -> int:
     for name in ui_names:
         check_image(f"assets/ui/{name}.png", (256, 256))
     check_image("assets/ui/logo_mark.png", (512, 512))
+    check_image("src-tauri/icons/icon.png", (512, 512))
 
     for kind in ("tree", "ore", "monster"):
         for grade in ("low", "mid", "high"):
@@ -170,6 +171,8 @@ def main() -> int:
     check("grid-template-columns: minmax(0,40%) minmax(0,60%)" in css, "HUD must reserve more width for the right-side log")
     check("grid-template-columns: repeat(2,minmax(0,72px))" in css, "equipped gear must use a compact two-column grid")
     check(".equip-slot img { display: block; width: 100%; height: 100%" in css, "equipped gear artwork must fill the enlarged slots")
+    check(".food-count-badge" in css and ".equip-slot:nth-child(5)" not in css, "the HUD must support a sixth stacked-food slot")
+    check(".map-point.dungeon { left: 81%; top: 77%" in css, "the dungeon map marker must sit on the lower rocky mountain")
     check(".game-shell *::-webkit-scrollbar { display: none" in css and "scrollbar-width: none" in css, "scrollbars must stay hidden while touch scrolling remains available")
     check("-webkit-overflow-scrolling: touch" in css and "overflow-y: auto" in css, "scrollable panels must retain touch scrolling")
     for width, height in ((360, 640), (390, 700), (430, 932), (560, 900)):
@@ -186,8 +189,11 @@ def main() -> int:
         "src-tauri/src/lib.rs",
         "src-tauri/src/main.rs",
         "README.md",
-        "GAME_DESIGN_MASTER_v0.9.md",
-        "HANDOFF_v0.9.md",
+        "GAME_DESIGN_MASTER_v1.0.md",
+        "HANDOFF_v1.0.md",
+        "BUILD_REPORT_v1.0.md",
+        "src-tauri/tauri.android.conf.json",
+        "tools/patch_android.py",
         ".github/workflows/windows-build.yml",
         ".github/workflows/android-build.yml",
     ):
@@ -199,8 +205,16 @@ def main() -> int:
     check("npx tauri android build --ci --apk --target aarch64" in android_workflow, "Android workflow must build an optimized ARM64 APK")
     check("targets: aarch64-linux-android" in android_workflow, "Android workflow must install the ARM64 Rust target")
     check("apksigner\" verify --verbose --print-certs" in android_workflow and "actions/upload-artifact@v4" in android_workflow, "Android workflow must sign, verify, and publish the APK")
+    check("python3 tools/patch_android.py --check" in android_workflow, "Android workflow must verify immersive mode and the short app label")
     tauri_config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     check(tauri_config.get("bundle", {}).get("targets") == ["nsis"], "Windows bundle must avoid WiX and build the NSIS setup executable")
+    check(tauri_config.get("version") == "1.0.0", "Tauri version must be 1.0.0")
+    android_config = json.loads((ROOT / "src-tauri/tauri.android.conf.json").read_text(encoding="utf-8"))
+    check(android_config.get("productName") == "이세계나무꾼", "Android launcher name must use the short Korean title")
+    main_rs = (ROOT / "src-tauri/src/main.rs").read_text(encoding="utf-8")
+    check('windows_subsystem = "windows"' in main_rs, "release Windows builds must suppress the console window")
+    android_patch = (ROOT / "tools/patch_android.py").read_text(encoding="utf-8")
+    check("BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE" in android_patch and "SYSTEM_UI_FLAG_IMMERSIVE_STICKY" in android_patch, "Android shell patch must hide system bars and allow swipe reveal")
 
     if ERRORS:
         print(f"FAILED: {len(ERRORS)} error(s) across {CHECKS} checks")

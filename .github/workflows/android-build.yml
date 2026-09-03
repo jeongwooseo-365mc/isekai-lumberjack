@@ -43,8 +43,14 @@ jobs:
         run: node tools/test_game.js
       - name: Prepare web assets
         run: npm run prepare:web
+      - name: Generate shared desktop and mobile icons
+        run: ./node_modules/.bin/tauri icon src-tauri/icons/icon.png
       - name: Initialize Android project
         run: npx tauri android init --ci
+      - name: Apply immersive mobile shell and short app label
+        run: python3 tools/patch_android.py
+      - name: Verify Android shell patch
+        run: python3 tools/patch_android.py --check
       - name: Build optimized ARM64 APK
         run: npx tauri android build --ci --apk --target aarch64
       - name: Sign and verify test APK
@@ -75,13 +81,13 @@ jobs:
             --ks-key-alias androiddebugkey \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out release/isekai-lumberjack-v0.9-android-arm64.apk \
+            --out release/isekai-lumberjack-v1.0-android-arm64.apk \
             "$RUNNER_TEMP/isekai-lumberjack-aligned.apk"
-          "$build_tools/apksigner" verify --verbose --print-certs release/isekai-lumberjack-v0.9-android-arm64.apk
+          "$build_tools/apksigner" verify --verbose --print-certs release/isekai-lumberjack-v1.0-android-arm64.apk
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: isekai-lumberjack-v0.9-android-arm64-apk
-          path: release/isekai-lumberjack-v0.9-android-arm64.apk
+          name: isekai-lumberjack-v1.0-android-arm64-apk
+          path: release/isekai-lumberjack-v1.0-android-arm64.apk
           if-no-files-found: error
           retention-days: 90

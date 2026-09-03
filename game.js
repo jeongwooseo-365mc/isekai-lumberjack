@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "0.9.0";
-  const SAVE_KEY = "isekai_lumberjack_save_v09";
+  const APP_VERSION = "1.0.0";
+  const SAVE_KEY = "isekai_lumberjack_save_v10";
   const META_KEY = "isekai_lumberjack_meta";
   const MAX_ITEM_COUNT = 9999;
   const GEAR_CAPACITY = 20;
@@ -48,10 +48,10 @@
   ];
 
   const RECIPES = [
-    { name: "생선 수프", icon: "fish_soup", heal: 50, cost: {해초:10,민어:1} },
-    { name: "해산물 스튜", icon: "seafood_stew", heal: 100, cost: {해초:20,조개:10,민어:1} },
-    { name: "구운 생선", icon: "grilled_fish", heal: 200, cost: {숭어:1} },
-    { name: "연어 스테이크", icon: "salmon_steak", heal: 400, cost: {연어:1} },
+    { name: "생선 수프", icon: "fish_soup", heal: 200, cost: {해초:5,민어:1} },
+    { name: "해산물 스튜", icon: "seafood_stew", heal: 400, cost: {해초:20,조개:10,민어:5} },
+    { name: "구운 생선", icon: "grilled_fish", heal: 300, cost: {숭어:1,조개:5} },
+    { name: "연어 스테이크", icon: "salmon_steak", heal: 600, cost: {연어:1} },
     { name: "고급 랍스터 정식", icon: "lobster_course", heal: 1000, cost: {랍스터:1} },
   ];
 
@@ -87,6 +87,7 @@
   let selectedHouse = 0;
   let selectedRecipe = 0;
   let selectedGearId = null;
+  let selectedFoodIndex = null;
   let selectedEnhanceId = null;
   let enhancing = false;
   let crafting = false;
@@ -111,7 +112,7 @@
       version: APP_VERSION, lv:1, xp:0, hp:500, place:"home", grade:0, auto:false, resting:false,
       rngSeed: (Date.now() >>> 0) || 1, res:{wood:[0,0,0],ore:[0,0,0],gold:[0,0,0]},
       fish:Object.fromEntries(FISH.map(x=>[x,0])), stones:[0,0,0], houses:[true,false,false,false,false], house:0,
-      gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), logs:[], target:null, fishState:null,
+      gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foods:Array(RECIPES.length).fill(0), equippedFood:null, logs:[], target:null, fishState:null,
       restProgress:0, restElapsed:0, openingSeen:false, worldGateUnlocked:false, ended:false, lastSeen:Date.now(), lastVisit:Date.now(), settings:{bgm:.5,sfx:.5},
     };
   }
@@ -204,6 +205,8 @@
   function gearIcon(g) { return g?.special?"assets/items/easter_egg.png":`assets/items/${g.type}_${g.tier}.png`; }
   function gearDisplayName(g) { return g?.special?"이스터에그":`${TIERS[g.tier]} ${GEAR_LABEL[g.type]}${g.enh?` +${g.enh}`:""}`; }
   function inventoryGearCount() { return S.gear.filter(g=>!g.special).length; }
+  function foodCount(index) { return capped(S.foods?.[index]); }
+  function foodIcon(index) { return `assets/foods/${RECIPES[index].icon}.png`; }
   function resourceIcon(kind, grade) { return `assets/resources/${kind}_${["low","mid","high"][grade]}.png`; }
   function stoneIcon(grade) { return `assets/resources/stone_${["low","mid","high"][grade]}.png`; }
   function fishIcon(name) { return `assets/resources/${FISH_KEY[name]}.png`; }
@@ -222,6 +225,8 @@
     for(const kind of ["wood","ore","gold"]) S.res[kind]=(S.res[kind]||[0,0,0]).map(capped);
     S.stones=(S.stones||[0,0,0]).map(capped);
     for(const name of FISH) S.fish[name]=capped(S.fish[name]);
+    S.foods=Array.from({length:RECIPES.length},(_,index)=>capped(S.foods?.[index]));
+    if(!Number.isInteger(S.equippedFood)||foodCount(S.equippedFood)<=0)S.equippedFood=null;
   }
 
   function addLog(text, icon="assets/ui/logo_mark.png", tone="", at=Date.now()) {
@@ -270,13 +275,30 @@
     return ["고블린","마물","드래곤"][S.grade];
   }
 
-  function depleteOneHp() {
-    if(S.hp<=0) return false;
+  function consumeFood(index,{automatic=false,simulated=false,at=Date.now()}={}) {
+    index=Number(index);
+    if(!Number.isInteger(index)||!RECIPES[index]||foodCount(index)<=0||S.hp>=maxHp())return false;
+    const recipe=RECIPES[index],before=S.hp;
+    S.foods[index]=capped(foodCount(index)-1);
+    S.hp=Math.min(maxHp(),S.hp+recipe.heal);
+    const gained=Math.max(0,Math.floor(S.hp-before));
+    addLog(`${recipe.name} ${automatic?"자동 섭취":"섭취"}: 체력 ${gained.toLocaleString()} 회복.`,foodIcon(index),"good",at);
+    if(S.foods[index]===0){if(S.equippedFood===index)S.equippedFood=null;if(selectedFoodIndex===index)selectedFoodIndex=null;}
+    if(!simulated){playSfx("eat");setTimeout(()=>playSfx("heal"),180);}
+    return true;
+  }
+
+  function handleExhaustion(simulated=false,at=Date.now()) {
+    if(S.hp>0)return true;
+    if(Number.isInteger(S.equippedFood)&&consumeFood(S.equippedFood,{automatic:true,simulated,at}))return true;
+    if(S.auto){S.auto=false;addLog("체력이 모두 소진되어 오토가 해제되었습니다.","assets/ui/energy.png","warn",at);}
+    return false;
+  }
+
+  function depleteOneHp(simulated=false,at=Date.now()) {
+    if(S.hp<=0)return false;
     S.hp=Math.max(0,S.hp-1);
-    if(S.hp===0 && S.auto) {
-      S.auto=false;
-      addLog("체력이 모두 소진되어 오토가 해제되었습니다.","assets/ui/energy.png","warn");
-    }
+    if(S.hp===0)handleExhaustion(simulated,at);
     return true;
   }
 
@@ -326,12 +348,12 @@
 
   function workAction(simulated=false, at=Date.now()) {
     if(!["forest","mine","dungeon","worldtree"].includes(S.place)) return;
-    if(S.hp<=0) {
+    if(S.hp<=0&&!handleExhaustion(simulated,at)) {
       if(!simulated) { toast(EXHAUSTED_MESSAGE); playSfx("exhausted"); }
       S.auto=false; return;
     }
     if(!S.target) newTarget();
-    depleteOneHp();
+    depleteOneHp(simulated,at);
     const damage=Math.max(1,totalAttack()-S.target.def);
     S.target.hp-=damage;
     if(!simulated) animateAction();
@@ -342,7 +364,7 @@
         addLog(`세계수의 반사 피해 ${reflected.toLocaleString()}.`,"assets/ui/energy.png","warn",at);
         setTimeout(animateReflection,150);
       }
-      if(S.hp<=0&&S.auto) { S.auto=false; addLog("체력이 모두 소진되어 오토가 해제되었습니다.","assets/ui/energy.png","warn",at); }
+      if(S.hp<=0)handleExhaustion(simulated,at);
       if(S.target.hp<=0) {
         S.target.hp=0; S.auto=false; S.ended=true;
         addLog("칠흑의 세계수를 베어 쓰러뜨렸습니다.","assets/targets/worldtree.png","rare",at);
@@ -354,7 +376,7 @@
 
   function startFishing(simulated=false, startAt=Date.now()) {
     if(S.place!=="pond" || S.fishState) return false;
-    if(S.hp<=0) {
+    if(S.hp<=0&&!handleExhaustion(simulated,startAt)) {
       S.auto=false;
       if(!simulated) { toast(EXHAUSTED_MESSAGE); playSfx("exhausted"); }
       return false;
@@ -365,15 +387,15 @@
     if(!simulated) {
       fishingCastUntil=Date.now()+520; dom.character.src="assets/sprites/fishing/cast.png"; playSfx("fish_cast");
       setTimeout(()=>{ if(S.fishState) renderScene(); },520);
-      scheduleFishing(); render(); persist();
+      render();scheduleFishing();persist();
     }
     return true;
   }
 
   function completeFishing(simulated=false, at=Date.now()) {
     if(!S.fishState) return;
-    if(S.hp<=0) { S.auto=false; S.fishState=null; if(!simulated){toast(EXHAUSTED_MESSAGE);playSfx("exhausted");render();persist();} return; }
-    depleteOneHp();
+    if(S.hp<=0&&!handleExhaustion(simulated,at)) { S.auto=false; S.fishState=null; if(!simulated){toast(EXHAUSTED_MESSAGE);playSfx("exhausted");render();persist();} return; }
+    depleteOneHp(simulated,at);
     const duration=S.fishState.baseDuration??S.fishState.duration;
     const rodTier=equipped("rod")?.tier??0, probs=ROD_PROBS[rodTier], roll=rand()*100;
     let sum=0,index=0; for(;index<probs.length;index++){sum+=probs[index];if(roll<sum)break;} index=Math.min(index,5);
@@ -397,7 +419,7 @@
     if(elapsed<=0) { if(!Number.isFinite(Number(S.lastSeen)))S.lastSeen=now; return 0; }
     if(S.place==="home"&&S.resting) {
       S.restElapsed=(S.restElapsed||0)+elapsed;
-      const total=S.restProgress+elapsed, ticks=Math.floor(total/10); S.restProgress=total%10;
+      const ticks=elapsed;S.restProgress=0;
       if(ticks>0 && S.hp<maxHp()) {
         const before=S.hp; S.hp=Math.min(maxHp(),S.hp+ticks*HOUSES[S.house].heal);
         const gained=S.hp-before;
@@ -416,8 +438,8 @@
         }
       }
     } else if(S.auto && ["forest","mine","dungeon","worldtree"].includes(S.place)) {
-      const actions=Math.min(elapsed,Math.ceil(S.hp));
-      for(let i=0;i<actions && S.hp>0&&!S.ended;i++) workAction(true,from+(i+1)*1000);
+      const actions=Math.min(elapsed,200000);
+      for(let i=0;i<actions&&S.auto&&S.hp>0&&!S.ended;i++)workAction(true,from+(i+1)*1000);
     }
     S.lastSeen=from+elapsed*1000; S.lastVisit=now;
     return elapsed;
@@ -449,7 +471,7 @@
 
   function updateActivityStatus() {
     if(S.place==="home"&&S.resting) {
-      dom.fishingStatus.textContent=`휴식 중 · ${elapsedLabel(S.restElapsed)} 경과 · 다음 회복 ${10-S.restProgress}초 · 10초당 +${HOUSES[S.house].heal}`;
+      dom.fishingStatus.textContent=`휴식 중 · ${elapsedLabel(S.restElapsed)} 경과 · 1초당 +${HOUSES[S.house].heal}`;
       return;
     }
     if(S.place==="pond"&&S.fishState) {
@@ -462,8 +484,8 @@
     if(S.place!=="home")return;
     S.resting=!S.resting;S.auto=S.resting;S.restProgress=0;S.restElapsed=0;
     if(S.resting) {
-      addLog(`휴식 시작: 10초마다 체력 ${HOUSES[S.house].heal} 회복.`,"assets/ui/realestate.png","good");
-      toast(`휴식을 시작합니다.\n10초마다 체력 +${HOUSES[S.house].heal}`);playSfx("auto_on");
+      addLog(`휴식 시작: 1초마다 체력 ${HOUSES[S.house].heal} 회복.`,"assets/ui/realestate.png","good");
+      toast(`휴식을 시작합니다.\n1초마다 체력 +${HOUSES[S.house].heal}`);playSfx("auto_on");
     } else {
       addLog("휴식을 종료했습니다.","assets/ui/realestate.png");toast("휴식을 종료했습니다.");playSfx("auto_off");
     }
@@ -574,9 +596,12 @@
     dom.level.textContent=`Lv.${S.lv}`; dom.hp.textContent=`${hpNow.toLocaleString()} / ${hpMax.toLocaleString()}`;dom.hpFill.style.width=`${hpPercent}%`;dom.hpMeter.setAttribute("aria-valuemax",String(hpMax));dom.hpMeter.setAttribute("aria-valuenow",String(hpNow));
     dom.attack.textContent=totalAttack().toLocaleString(); dom.place.textContent=currentPlaceName();
     dom.xpFill.style.width=`${S.lv>=100?100:S.xp/needXp()*100}%`; dom.xpText.textContent=S.lv>=100?"MAX":`${S.xp.toLocaleString()} / ${needXp().toLocaleString()}`;
-    dom.equipped.innerHTML=Object.keys(GEAR_LABEL).map(type=>{
+    const gearSlots=Object.keys(GEAR_LABEL).map(type=>{
       const g=equipped(type); return g?`<div class="equip-slot" title="${TIERS[g.tier]} ${GEAR_LABEL[type]}"><img src="${gearIcon(g)}" alt="${GEAR_LABEL[type]}"><small>${GEAR_LABEL[type]}</small>${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div>`:`<div class="equip-slot empty"><small>${GEAR_LABEL[type]} 없음</small></div>`;
     }).join("");
+    const foodIndex=Number.isInteger(S.equippedFood)&&foodCount(S.equippedFood)>0?S.equippedFood:null;
+    const foodSlot=foodIndex!==null?`<div class="equip-slot food-slot" title="${RECIPES[foodIndex].name}"><img src="${foodIcon(foodIndex)}" alt="${RECIPES[foodIndex].name}"><i class="food-count-badge">x${foodCount(foodIndex).toLocaleString()}</i><small>음식</small></div>`:`<div class="equip-slot empty food-slot"><small>음식 없음</small></div>`;
+    dom.equipped.innerHTML=gearSlots+foodSlot;
     dom.log.innerHTML=S.logs.slice().reverse().map(entry=>`<div class="log-entry ${entry.tone||""}"><img src="${entry.icon}" alt=""><div><time>${new Date(entry.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}</time><br>${entry.text}</div></div>`).join("") || `<div class="log-entry"><img src="assets/ui/logo_mark.png" alt=""><div>이세계에서 눈을 떴습니다.</div></div>`;
   }
 
@@ -692,7 +717,7 @@
 
   function renderEstate() {
     const house=HOUSES[selectedHouse],owned=S.houses[selectedHouse]; setOverlayHeader("부동산","집을 구입하고 휴식처를 지정합니다");
-    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="assets/bg/home${selectedHouse+1}.png" alt=""></div><div class="detail-copy"><h3>${house.name}</h3><p class="value">10초마다 체력 +${house.heal}</p><p>${S.house===selectedHouse?"현재 휴식처":owned?"보유 중":"미보유"}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${requirementHtml(house.cost)}<button class="primary-button wide-action" data-do="house-action" ${!owned&&!canPay(house.cost)?"disabled":""}>${owned?(S.house===selectedHouse?"사용 중":"휴식처로 지정"):"구입하기"}</button></div></div><div class="section-title">매물 목록</div><div class="item-list">${HOUSES.map((h,i)=>`<button class="item-card ${i===selectedHouse?"selected":""}" data-do="house-select" data-house="${i}"><img src="assets/bg/home${i+1}.png" alt=""><span><b>${h.name}</b><small>10초당 +${h.heal} · ${S.houses[i]?"보유":"미보유"}</small></span></button>`).join("")}</div>`;
+    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="assets/bg/home${selectedHouse+1}.png" alt=""></div><div class="detail-copy"><h3>${house.name}</h3><p class="value">1초마다 체력 +${house.heal}</p><p>${S.house===selectedHouse?"현재 휴식처":owned?"보유 중":"미보유"}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${requirementHtml(house.cost)}<button class="primary-button wide-action" data-do="house-action" ${!owned&&!canPay(house.cost)?"disabled":""}>${owned?(S.house===selectedHouse?"사용 중":"휴식처로 지정"):"구입하기"}</button></div></div><div class="section-title">매물 목록</div><div class="item-list">${HOUSES.map((h,i)=>`<button class="item-card ${i===selectedHouse?"selected":""}" data-do="house-select" data-house="${i}"><img src="assets/bg/home${i+1}.png" alt=""><span><b>${h.name}</b><small>1초당 +${h.heal} · ${S.houses[i]?"보유":"미보유"}</small></span></button>`).join("")}</div>`;
   }
 
   function houseAction() {
@@ -709,13 +734,16 @@
   function fishPay(cost){if(!canFishPay(cost))return false;for(const[n,v]of Object.entries(cost))S.fish[n]-=v;return true;}
 
   function renderCooking() {
-    const recipe=RECIPES[selectedRecipe];setOverlayHeader("요리","낚시 재료로 체력을 즉시 회복합니다");
-    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="assets/foods/${recipe.icon}.png" alt=""></div><div class="detail-copy"><h3>${recipe.name}</h3><p class="value">체력 +${recipe.heal.toLocaleString()}</p><p>현재 체력 ${Math.floor(S.hp).toLocaleString()} / ${maxHp().toLocaleString()}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${fishRequirementHtml(recipe.cost)}<button class="primary-button wide-action" data-do="cook" ${!canFishPay(recipe.cost)||S.hp>=maxHp()?"disabled":""}>만들어 먹기</button></div></div><div class="section-title">요리 목록</div><div class="item-list">${RECIPES.map((r,i)=>`<button class="item-card ${i===selectedRecipe?"selected":""}" data-do="recipe-select" data-recipe="${i}"><img src="assets/foods/${r.icon}.png" alt=""><span><b>${r.name}</b><small>체력 +${r.heal.toLocaleString()}</small></span></button>`).join("")}</div><div class="section-title">보유 낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
+    const recipe=RECIPES[selectedRecipe];setOverlayHeader("요리","낚시 재료로 회복 음식을 요리합니다");
+    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="assets/foods/${recipe.icon}.png" alt=""></div><div class="detail-copy"><h3>${recipe.name}</h3><p class="value">체력 +${recipe.heal.toLocaleString()}</p><p>보유 ${foodCount(selectedRecipe).toLocaleString()}개 · 마이페이지에서 장착 또는 섭취</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${fishRequirementHtml(recipe.cost)}<button class="primary-button wide-action" data-do="cook" ${!canFishPay(recipe.cost)||foodCount(selectedRecipe)>=MAX_ITEM_COUNT?"disabled":""}>요리하기</button></div></div><div class="section-title">요리 목록</div><div class="item-list">${RECIPES.map((r,i)=>`<button class="item-card ${i===selectedRecipe?"selected":""}" data-do="recipe-select" data-recipe="${i}"><img src="assets/foods/${r.icon}.png" alt=""><span><b>${r.name}</b><small>체력 +${r.heal.toLocaleString()} · 보유 x${foodCount(i).toLocaleString()}</small></span></button>`).join("")}</div><div class="section-title">보유 낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
   }
 
   function cookSelected() {
-    const r=RECIPES[selectedRecipe]; if(S.hp>=maxHp()||!fishPay(r.cost)){playSfx("ui_error");return;}
-    const before=S.hp;S.hp=Math.min(maxHp(),S.hp+r.heal);addLog(`${r.name} 섭취: 체력 ${Math.floor(S.hp-before)} 회복.`,`assets/foods/${r.icon}.png`,"good");playSfx("cook");setTimeout(()=>playSfx("heal"),180);renderCooking();render();persist();
+    const r=RECIPES[selectedRecipe];
+    if(foodCount(selectedRecipe)>=MAX_ITEM_COUNT||!fishPay(r.cost)){playSfx("ui_error");return;}
+    S.foods[selectedRecipe]=capped(foodCount(selectedRecipe)+1);
+    const message=`${r.name} 1개를 만들었습니다.`;
+    addLog(message,foodIcon(selectedRecipe),"good");playSfx("cook");toast(message);renderCooking();renderHud();persist();
   }
 
   function enhRequirements(g) {
@@ -747,16 +775,39 @@
   }
 
   function renderProfile() {
-    let g=gearById(selectedGearId);if(!g){g=equipped("axe")||S.gear[0];selectedGearId=g?.id||null;}
-    setOverlayHeader("마이페이지","보유 장비를 확인하고 장착하거나 정리합니다");
-    const isEquipped=g&&!g.special&&S.equipped[g.type]===g.id;
-    const equipDisabled=!g||g.special||isEquipped,discardDisabled=!g||g.special||g.tier===0||isEquipped;
-    const detail=g?`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.special?"엔딩 완료 영구 징표":isEquipped?"현재 장착 중":"보유 중"}</p></div></div><div class="requirements profile-actions"><button class="primary-button" data-do="equip" ${equipDisabled?"disabled":""}>${g.special?"장착 불가":isEquipped?"장착 중":"장착하기"}</button><button class="danger-button" data-do="discard" ${discardDisabled?"disabled":""}>${g.special||g.tier===0?"버리기 불가":"버리기"}</button></div></div>`:"";
-    dom.overlayContent.innerHTML=`${detail}<div class="section-title">보유 장비 ${inventoryGearCount()}/${GEAR_CAPACITY}${S.gear.some(item=>item.special)?" · 이스터에그 보유":""}</div><div class="gear-inventory-box"><div class="item-list">${S.gear.map(item=>`<button class="item-card ${item.id===g?.id?"selected":""}" data-do="gear-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${item.special?"영구 징표":S.equipped[item.type]===item.id?"장착 중":"보유"}</small></span></button>`).join("")}</div></div><div class="section-title">보유 재화</div>${walletHtml()}<div class="section-title">낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
+    const foodSelected=Number.isInteger(selectedFoodIndex)&&foodCount(selectedFoodIndex)>0;
+    let g=null;
+    if(!foodSelected){g=gearById(selectedGearId);if(!g){g=equipped("axe")||S.gear[0];selectedGearId=g?.id||null;}}
+    setOverlayHeader("마이페이지","보유 장비와 음식을 확인하고 사용합니다");
+    let detail="";
+    if(foodSelected) {
+      const recipe=RECIPES[selectedFoodIndex],isEquipped=S.equippedFood===selectedFoodIndex;
+      detail=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${foodIcon(selectedFoodIndex)}" alt=""></div><div class="detail-copy"><h3>${recipe.name} x${foodCount(selectedFoodIndex).toLocaleString()}</h3><p class="value">체력 +${recipe.heal.toLocaleString()}</p><p>${isEquipped?"현재 장착 중 · 체력 0에서 자동 섭취":"보유 중"}</p></div></div><div class="requirements profile-actions"><button class="primary-button" data-do="equip-food" ${isEquipped?"disabled":""}>${isEquipped?"장착 중":"장착하기"}</button><button class="secondary-button" data-do="eat-food" ${S.hp>=maxHp()?"disabled":""}>즉시먹기</button></div></div>`;
+    } else if(g) {
+      const isEquipped=!g.special&&S.equipped[g.type]===g.id;
+      const equipDisabled=g.special||isEquipped,discardDisabled=g.special||g.tier===0||isEquipped;
+      detail=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.special?"엔딩 완료 영구 징표":isEquipped?"현재 장착 중":"보유 중"}</p></div></div><div class="requirements profile-actions"><button class="primary-button" data-do="equip" ${equipDisabled?"disabled":""}>${g.special?"장착 불가":isEquipped?"장착 중":"장착하기"}</button><button class="danger-button" data-do="discard" ${discardDisabled?"disabled":""}>${g.special||g.tier===0?"버리기 불가":"버리기"}</button></div></div>`;
+    }
+    const foodCards=RECIPES.map((recipe,index)=>foodCount(index)>0?`<button class="item-card ${foodSelected&&index===selectedFoodIndex?"selected":""}" data-do="food-select" data-food="${index}"><img src="${foodIcon(index)}" alt=""><span><b>${recipe.name} <em class="food-stack">x${foodCount(index).toLocaleString()}</em></b><small>${S.equippedFood===index?"장착 중":"보유"}</small></span></button>`:"").join("");
+    const foodKinds=RECIPES.filter((_,index)=>foodCount(index)>0).length;
+    dom.overlayContent.innerHTML=`${detail}<div class="section-title">보유 장비 ${inventoryGearCount()}/${GEAR_CAPACITY}${foodKinds?` · 음식 ${foodKinds}종`:""}${S.gear.some(item=>item.special)?" · 이스터에그 보유":""}</div><div class="gear-inventory-box"><div class="item-list">${S.gear.map(item=>`<button class="item-card ${!foodSelected&&item.id===g?.id?"selected":""}" data-do="gear-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${item.special?"영구 징표":S.equipped[item.type]===item.id?"장착 중":"보유"}</small></span></button>`).join("")}${foodCards}</div></div><div class="section-title">보유 재화</div>${walletHtml()}<div class="section-title">낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
   }
 
   function equipSelected() {
     const g=gearById(selectedGearId);if(!g||g.special)return;S.equipped[g.type]=g.id;if(S.hp>maxHp())S.hp=maxHp();addLog(`${gearDisplayName(g)} 장착.`,gearIcon(g),"good");playSfx("equip");renderProfile();render();persist();
+  }
+
+  function equipSelectedFood() {
+    if(!Number.isInteger(selectedFoodIndex)||foodCount(selectedFoodIndex)<=0)return;
+    S.equippedFood=selectedFoodIndex;
+    addLog(`${RECIPES[selectedFoodIndex].name} 장착. 체력 0에서 자동으로 먹습니다.`,foodIcon(selectedFoodIndex),"good");
+    playSfx("equip");renderProfile();render();persist();
+  }
+
+  function eatSelectedFood() {
+    if(!Number.isInteger(selectedFoodIndex)||!consumeFood(selectedFoodIndex)){playSfx("ui_error");return;}
+    if(foodCount(selectedFoodIndex)<=0)selectedFoodIndex=null;
+    renderProfile();render();persist();
   }
 
   async function discardSelected() {
@@ -885,8 +936,11 @@
     else if(action==="cook")cookSelected();
     else if(action==="enhance-select"){selectedEnhanceId=el.dataset.id;renderEnhance();}
     else if(action==="enhance-now")enhanceNow();
-    else if(action==="gear-select"){selectedGearId=el.dataset.id;renderProfile();}
+    else if(action==="gear-select"){selectedGearId=el.dataset.id;selectedFoodIndex=null;renderProfile();}
+    else if(action==="food-select"){selectedFoodIndex=+el.dataset.food;selectedGearId=null;renderProfile();}
     else if(action==="equip")equipSelected();
+    else if(action==="equip-food")equipSelectedFood();
+    else if(action==="eat-food")eatSelectedFood();
     else if(action==="discard")discardSelected();
     else if(action==="quit")quitGame();
     else if(action==="reset")resetSave();
@@ -910,7 +964,7 @@
   function bindEvents() {
     $("startButton").addEventListener("click",startGame);$("resetButton").addEventListener("click",resetSave);$("introQuitButton").addEventListener("click",quitGame);$("endingQuitButton").addEventListener("click",quitGame);
     $("bossStartButton").addEventListener("click",startFinalBattle);$("endingIntroButton").addEventListener("click",returnToIntroAfterEnding);
-    dom.scene.addEventListener("pointerdown",sceneAction);dom.menuToggle.addEventListener("click",event=>{event.stopPropagation();playSfx("ui_click");toggleMenu();});dom.autoButton.addEventListener("click",event=>{event.stopPropagation();toggleAuto();setMenuOpen(false);});
+    dom.scene.addEventListener("click",sceneAction);dom.menuToggle.addEventListener("click",event=>{event.stopPropagation();playSfx("ui_click");toggleMenu();});dom.autoButton.addEventListener("click",event=>{event.stopPropagation();toggleAuto();setMenuOpen(false);});
     dom.mainMenu.addEventListener("click",event=>{const button=event.target.closest("[data-menu]");if(!button)return;playSfx("ui_click");openView(button.dataset.menu);});
     $("backButton").addEventListener("click",overlayBack);$("closeButton").addEventListener("click",()=>{playSfx("ui_back");closeOverlay();});dom.overlayContent.addEventListener("click",handleOverlayClick);
     dom.overlayContent.addEventListener("input",event=>{const input=event.target.closest("[data-setting]");if(!input)return;const key=input.dataset.setting;S.settings[key]=+input.value/100;input.nextElementSibling.textContent=`${input.value}%`;if(key==="bgm"&&bgm){bgm.volume=Math.min(1,S.settings.bgm*1.4);if(S.settings.bgm>0&&bgm.paused)bgm.play().catch(()=>{});}persist();});
@@ -930,7 +984,7 @@
       try{const parsed=JSON.parse(raw);if(parsed.version===APP_VERSION)S=parsed;else{resetNotice=`업데이트 ${APP_VERSION} 적용으로 이전 세이브가 초기화되었습니다.`;await storage.remove();S=freshState();}}
       catch(error){resetNotice="손상된 세이브를 초기화했습니다.";S=freshState();}
     } else S=freshState();
-    S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=S.restProgress||0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};normalizeInventory();refreshWorldGateUnlock();
+    S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();refreshWorldGateUnlock();
     if(M.endingSeen&&!S.gear.some(g=>g.special))S.gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
     if(!S.logs.length)addLog("이세계에서 눈을 떴습니다.");
     bindEvents();renderIntro();showScreen("intro");
@@ -950,6 +1004,9 @@
       refreshWorldGateUnlock,
       hasAllDivineGear,
       normalizeInventory,
+      foodCount,
+      consumeFood,
+      handleExhaustion,
       stoneDropGrade,
       stoneDropGradeForPlace,
       totalAttack,
@@ -966,13 +1023,20 @@
       renderEnhance,
       renderProfile,
       renderSettings,
+      renderHud,
       craftSelected,
+      cookSelected,
+      equipSelectedFood,
+      eatSelectedFood,
+      selectRecipe:(index)=>{selectedRecipe=Math.max(0,Math.min(RECIPES.length-1,Number(index)||0));},
+      selectFood:(index)=>{selectedFoodIndex=Number(index);selectedGearId=null;},
+      sceneAction,
       discardSelected,
       startFinalBattle,
       startEnding,
       finalizeEnding,
       setMenuOpen,
-      constants:{MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS},
+      constants:{MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,HOUSES,RECIPES},
     };
   }
 
