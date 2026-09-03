@@ -222,6 +222,7 @@ def main() -> int:
     check('windows_subsystem = "windows"' in main_rs, "release Windows builds must suppress the console window")
     android_patch = (ROOT / "tools/patch_android.py").read_text(encoding="utf-8")
     check("BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE" in android_patch and "SYSTEM_UI_FLAG_IMMERSIVE_STICKY" in android_patch, "Android shell patch must hide system bars and allow swipe reveal")
+    check("import app.tauri.TauriActivity" not in android_patch and "class MainActivity : TauriActivity()" in android_patch, "Android activity must use Tauri's generated same-package base class")
 
     if ERRORS:
         print(f"FAILED: {len(ERRORS)} error(s) across {CHECKS} checks")
