@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that Android builds use the game's axe icon and requested ABI."""
+"""Verify Android package metadata, launcher art, ABI, and launch capture."""
 
 from __future__ import annotations
 
@@ -173,12 +173,48 @@ def verify_apk(apk: Path, abi: str, resource_root: Path = ANDROID_RES) -> None:
     print(f"Android APK OK: {apk.name} · {abi} · axe icon")
 
 
+def verify_screenshot(screenshot: Path) -> None:
+    """Reject the smooth empty WebView background seen when the game is 0px tall."""
+    if not screenshot.is_file():
+        raise RuntimeError(f"screenshot not found: {screenshot}")
+    width, height, pixels = png_pixels(screenshot.read_bytes())
+    if width < 320 or height < 480:
+        raise RuntimeError(f"unexpected Android screenshot size: {width}x{height}")
+
+    strong_edges = 0
+    comparisons = 0
+    quantized_colors: set[tuple[int, int, int]] = set()
+    step = 4
+    for y in range(0, height, step):
+        for x in range(0, width, step):
+            offset = (y * width + x) * 4
+            quantized_colors.add(tuple(channel // 16 for channel in pixels[offset : offset + 3]))
+            if x + step >= width:
+                continue
+            neighbor = (y * width + x + step) * 4
+            difference = sum(abs(pixels[offset + channel] - pixels[neighbor + channel]) for channel in range(3))
+            strong_edges += difference >= 24
+            comparisons += 1
+
+    edge_ratio = strong_edges / max(1, comparisons)
+    if edge_ratio < 0.005 or len(quantized_colors) < 32:
+        raise RuntimeError(
+            "Android screenshot appears blank "
+            f"(edge ratio {edge_ratio:.4f}, colors {len(quantized_colors)})"
+        )
+    print(
+        f"Android screen OK: {screenshot.name} · {width}x{height} · "
+        f"edge ratio {edge_ratio:.4f} · colors {len(quantized_colors)}"
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--generated", action="store_true")
     parser.add_argument("--res-root", type=Path, default=ANDROID_RES)
     parser.add_argument("--apk", type=Path)
     parser.add_argument("--abi", choices=("arm64-v8a", "x86_64"))
+    parser.add_argument("--screenshot", type=Path)
     args = parser.parse_args()
     try:
         if args.generated:
@@ -187,9 +223,11 @@ def main() -> int:
             if not args.abi:
                 parser.error("--apk requires --abi")
             verify_apk(args.apk, args.abi, args.res_root)
-        if not args.generated and not args.apk:
-            parser.error("select --generated or --apk")
-    except (KeyError, json.JSONDecodeError, OSError, RuntimeError, zipfile.BadZipFile) as error:
+        if args.screenshot:
+            verify_screenshot(args.screenshot)
+        if not args.generated and not args.apk and not args.screenshot:
+            parser.error("select --generated, --apk, or --screenshot")
+    except (KeyError, json.JSONDecodeError, OSError, RuntimeError, ValueError, struct.error, zipfile.BadZipFile, zlib.error) as error:
         print(f"Android package ERROR: {error}", file=sys.stderr)
         return 1
     return 0

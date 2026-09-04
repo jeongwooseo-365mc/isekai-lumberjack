@@ -52,4 +52,5 @@ if [[ -f release/android-window.xml ]] && grep -Eiq 'Viewing full screen|To exit
 fi
 
 adb exec-out screencap -p > release/android-launch.png
+python3 tools/verify_android_package.py --screenshot release/android-launch.png
 printf 'Android launch OK: pid=%s activity=%s\n' "$pid" "$activity" | tee -a release/android-launch-check.txt
