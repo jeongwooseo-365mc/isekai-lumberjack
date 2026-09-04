@@ -206,6 +206,41 @@ def verify_screenshot(screenshot: Path) -> None:
     )
 
 
+def verify_screen_transition(before: Path, after: Path, minimum_delta: float = 6.0) -> None:
+    """Ensure a tap or timed cinematic step visibly changed the WebView."""
+    if not before.is_file() or not after.is_file():
+        raise RuntimeError(f"screen transition input missing: {before} -> {after}")
+    before_width, before_height, before_pixels = png_pixels(before.read_bytes())
+    after_width, after_height, after_pixels = png_pixels(after.read_bytes())
+    if (before_width, before_height) != (after_width, after_height):
+        raise RuntimeError(
+            "screen transition dimensions differ: "
+            f"{before_width}x{before_height} -> {after_width}x{after_height}"
+        )
+
+    channel_delta = 0
+    comparisons = 0
+    step = 8
+    for y in range(0, before_height, step):
+        for x in range(0, before_width, step):
+            offset = (y * before_width + x) * 4
+            channel_delta += sum(
+                abs(before_pixels[offset + channel] - after_pixels[offset + channel])
+                for channel in range(3)
+            )
+            comparisons += 3
+    mean_delta = channel_delta / max(1, comparisons)
+    if mean_delta < minimum_delta:
+        raise RuntimeError(
+            "Android screen did not visibly transition "
+            f"({before.name} -> {after.name}, mean RGB delta {mean_delta:.2f})"
+        )
+    print(
+        "Android transition OK: "
+        f"{before.name} -> {after.name} · mean RGB delta {mean_delta:.2f}"
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--generated", action="store_true")
@@ -213,6 +248,8 @@ def main() -> int:
     parser.add_argument("--apk", type=Path)
     parser.add_argument("--abi", choices=("arm64-v8a", "x86_64"))
     parser.add_argument("--screenshot", type=Path)
+    parser.add_argument("--transition", nargs=2, type=Path, metavar=("BEFORE", "AFTER"))
+    parser.add_argument("--minimum-delta", type=float, default=6.0)
     args = parser.parse_args()
     try:
         if args.generated:
@@ -223,7 +260,9 @@ def main() -> int:
             verify_apk(args.apk, args.abi, args.res_root)
         if args.screenshot:
             verify_screenshot(args.screenshot)
-        if not args.generated and not args.apk and not args.screenshot:
+        if args.transition:
+            verify_screen_transition(args.transition[0], args.transition[1], args.minimum_delta)
+        if not args.generated and not args.apk and not args.screenshot and not args.transition:
             parser.error("select --generated, --apk, or --screenshot")
     except (KeyError, json.JSONDecodeError, OSError, RuntimeError, ValueError, struct.error, zipfile.BadZipFile, zlib.error) as error:
         print(f"Android package ERROR: {error}", file=sys.stderr)
