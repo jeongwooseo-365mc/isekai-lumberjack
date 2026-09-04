@@ -97,7 +97,6 @@ if [[ -f release/android-window.xml ]] && grep -Eiq "$tutorial_pattern" release/
 fi
 
 adb exec-out screencap -p > release/android-launch.png
-python3 tools/verify_android_package.py --screenshot release/android-launch.png
 cp release/android-launch.png release/android-intro.png
 
 # Exercise the path that a real player takes. The old smoke test stopped at
@@ -135,25 +134,30 @@ check_alive() {
 sleep 1
 check_alive "opening scene 1"
 adb exec-out screencap -p > release/android-opening-1.png
-python3 tools/verify_android_package.py --screenshot release/android-opening-1.png
-python3 tools/verify_android_package.py --transition release/android-intro.png release/android-opening-1.png
 
 sleep 5
 check_alive "opening scene 2"
 adb exec-out screencap -p > release/android-opening-2.png
-python3 tools/verify_android_package.py --screenshot release/android-opening-2.png
-python3 tools/verify_android_package.py --transition release/android-opening-1.png release/android-opening-2.png
 
 sleep 7
 check_alive "opening scene 3"
 adb exec-out screencap -p > release/android-opening-3.png
-python3 tools/verify_android_package.py --screenshot release/android-opening-3.png
-python3 tools/verify_android_package.py --transition release/android-opening-2.png release/android-opening-3.png
 
 sleep 6
 check_alive "main game entry"
 adb exec-out screencap -p > release/android-main.png
+
+# Capture every timed state first. PNG analysis is intentionally thorough and
+# can take tens of seconds on CI; running it between captures would let the
+# cinematic advance and make two nominal stages appear identical.
+python3 tools/verify_android_package.py --screenshot release/android-intro.png
+python3 tools/verify_android_package.py --screenshot release/android-opening-1.png
+python3 tools/verify_android_package.py --screenshot release/android-opening-2.png
+python3 tools/verify_android_package.py --screenshot release/android-opening-3.png
 python3 tools/verify_android_package.py --screenshot release/android-main.png
+python3 tools/verify_android_package.py --transition release/android-intro.png release/android-opening-1.png
+python3 tools/verify_android_package.py --transition release/android-opening-1.png release/android-opening-2.png
+python3 tools/verify_android_package.py --transition release/android-opening-2.png release/android-opening-3.png
 python3 tools/verify_android_package.py --transition release/android-opening-3.png release/android-main.png
 
 printf 'Android full startup OK: pid=%s activity=%s startTap=%s,%s intro->story1->story2->story3->main\n' \
