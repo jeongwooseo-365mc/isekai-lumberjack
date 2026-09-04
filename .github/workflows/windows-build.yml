@@ -37,4 +37,4 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         with:
           uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: isekai-lumberjack-v1.1-windows-[bundle]
+          workflowArtifactNamePattern: isekai-lumberjack-v1.1.1-windows-[bundle]

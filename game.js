@@ -1,7 +1,8 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.1.0";
+  const APP_VERSION = "1.1.1";
+  const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
   const META_KEY = "isekai_lumberjack_meta";
   const MAX_ITEM_COUNT = 9999;
@@ -109,7 +110,7 @@
     const gear = Object.keys(GEAR_LABEL).map((type, i) => ({ id:`starter_${type}_${i}`, type, tier:0, enh:0 }));
     if(M.endingSeen) gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
     return {
-      version: APP_VERSION, lv:1, xp:0, hp:500, place:"home", grade:0, auto:false, resting:false,
+      version: SAVE_VERSION, lv:1, xp:0, hp:500, place:"home", grade:0, auto:false, resting:false,
       rngSeed: (Date.now() >>> 0) || 1, res:{wood:[0,0,0],ore:[0,0,0],gold:[0,0,0]},
       fish:Object.fromEntries(FISH.map(x=>[x,0])), stones:[0,0,0], houses:[true,false,false,false,false], house:0,
       gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foods:Array(RECIPES.length).fill(0), equippedFood:null, logs:[], target:null, fishState:null,
@@ -995,7 +996,7 @@
     if(metaRaw){try{const parsed=JSON.parse(metaRaw);M={endingSeen:!!parsed.endingSeen};}catch(error){M={endingSeen:false};}}
     const raw=await storage.load();
     if(raw){
-      try{const parsed=JSON.parse(raw);if(parsed.version===APP_VERSION)S=parsed;else{resetNotice=`업데이트 ${APP_VERSION} 적용으로 이전 세이브가 초기화되었습니다.`;await storage.remove();S=freshState();}}
+      try{const parsed=JSON.parse(raw);if(parsed.version===SAVE_VERSION)S=parsed;else{resetNotice=`업데이트 ${APP_VERSION} 적용으로 이전 세이브가 초기화되었습니다.`;await storage.remove();S=freshState();}}
       catch(error){resetNotice="손상된 세이브를 초기화했습니다.";S=freshState();}
     } else S=freshState();
     S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();refreshWorldGateUnlock();
@@ -1053,7 +1054,7 @@
       startEnding,
       finalizeEnding,
       setMenuOpen,
-      constants:{APP_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES},
+      constants:{APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES},
     };
   }
 

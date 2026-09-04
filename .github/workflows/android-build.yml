@@ -30,7 +30,7 @@ jobs:
       - uses: android-actions/setup-android@v3
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,x86_64-linux-android
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -43,22 +43,34 @@ jobs:
         run: node tools/test_game.js
       - name: Prepare web assets
         run: npm run prepare:web
-      - name: Generate shared desktop and mobile icons
-        run: ./node_modules/.bin/tauri icon src-tauri/icons/icon.png
       - name: Initialize Android project
         run: npx tauri android init --ci
+      - name: Generate shared desktop and mobile icons
+        run: ./node_modules/.bin/tauri icon src-tauri/icons/icon.png
       - name: Apply immersive mobile shell and short app label
         run: python3 tools/patch_android.py
-      - name: Verify Android shell patch
-        run: python3 tools/patch_android.py --check
-      - name: Build optimized ARM64 APK
-        run: npx tauri android build --ci --apk --target aarch64
-      - name: Sign and verify test APK
+      - name: Verify Android shell, label, and generated axe icons
+        run: |
+          python3 tools/patch_android.py --check
+          python3 tools/verify_android_package.py --generated
+      - name: Build ARM64 release and x86_64 runtime-test APKs
+        run: npx tauri android build --ci --apk --split-per-abi --target aarch64 --target x86_64
+      - name: Sign and verify QA APKs
         shell: bash
         run: |
           set -euo pipefail
-          unsigned_apk="$(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*-unsigned.apk' -print -quit)"
-          test -n "$unsigned_apk"
+          arm_apk=""
+          x86_apk=""
+          apk_index=0
+          while IFS= read -r apk; do
+            entries="$RUNNER_TEMP/apk-entries-$apk_index.txt"
+            unzip -Z1 "$apk" > "$entries"
+            if grep -q '^lib/arm64-v8a/' "$entries"; then arm_apk="$apk"; fi
+            if grep -q '^lib/x86_64/' "$entries"; then x86_apk="$apk"; fi
+            apk_index=$((apk_index + 1))
+          done < <(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*-unsigned.apk' -print)
+          test -n "$arm_apk"
+          test -n "$x86_apk"
 
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           test -x "$build_tools/zipalign"
@@ -75,19 +87,49 @@ jobs:
             -dname "CN=Isekai Lumberjack Test,O=Isekai Lumberjack,C=KR"
 
           mkdir -p release
-          "$build_tools/zipalign" -f -p 4 "$unsigned_apk" "$RUNNER_TEMP/isekai-lumberjack-aligned.apk"
-          "$build_tools/apksigner" sign \
-            --ks "$RUNNER_TEMP/isekai-lumberjack-test.keystore" \
-            --ks-key-alias androiddebugkey \
-            --ks-pass pass:android \
-            --key-pass pass:android \
-            --out release/isekai-lumberjack-v1.1-android-arm64.apk \
-            "$RUNNER_TEMP/isekai-lumberjack-aligned.apk"
-          "$build_tools/apksigner" verify --verbose --print-certs release/isekai-lumberjack-v1.1-android-arm64.apk
+          sign_apk() {
+            local input="$1"
+            local aligned="$2"
+            local output="$3"
+            "$build_tools/zipalign" -f -p 4 "$input" "$aligned"
+            "$build_tools/apksigner" sign \
+              --ks "$RUNNER_TEMP/isekai-lumberjack-test.keystore" \
+              --ks-key-alias androiddebugkey \
+              --ks-pass pass:android \
+              --key-pass pass:android \
+              --out "$output" \
+              "$aligned"
+            "$build_tools/apksigner" verify --verbose --print-certs "$output"
+          }
+
+          sign_apk "$arm_apk" "$RUNNER_TEMP/isekai-lumberjack-arm64-aligned.apk" "release/isekai-lumberjack-v1.1.1-android-arm64.apk"
+          sign_apk "$x86_apk" "$RUNNER_TEMP/isekai-lumberjack-x86_64-aligned.apk" "$RUNNER_TEMP/isekai-lumberjack-v1.1.1-android-x86_64.apk"
+          echo "X86_APK=$RUNNER_TEMP/isekai-lumberjack-v1.1.1-android-x86_64.apk" >> "$GITHUB_ENV"
+
+          python3 tools/verify_android_package.py --apk "release/isekai-lumberjack-v1.1.1-android-arm64.apk" --abi arm64-v8a
+          python3 tools/verify_android_package.py --apk "$RUNNER_TEMP/isekai-lumberjack-v1.1.1-android-x86_64.apk" --abi x86_64
+      - name: Enable KVM for launch smoke test
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and launch on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: bash tools/android_smoke_test.sh "$X86_APK"
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: isekai-lumberjack-v1.1-android-arm64-apk
-          path: release/isekai-lumberjack-v1.1-android-arm64.apk
+          name: isekai-lumberjack-v1.1.1-android-arm64-apk
+          path: |
+            release/isekai-lumberjack-v1.1.1-android-arm64.apk
+            release/android-launch.png
+            release/android-launch-check.txt
+            release/android-install.txt
           if-no-files-found: error
           retention-days: 90

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.1."""
+"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.1.1."""
 
 from __future__ import annotations
 
@@ -176,7 +176,7 @@ def main() -> int:
     check(".map-point.dungeon { left: 86%; top: 88%" in css, "the dungeon map marker must sit near the lower-right rocky mountain with a margin")
     check(".game-shell *::-webkit-scrollbar { display: none" in css and "scrollbar-width: none" in css, "scrollbars must stay hidden while touch scrolling remains available")
     check("-webkit-overflow-scrolling: touch" in css and "overflow-y: auto" in css, "scrollable panels must retain touch scrolling")
-    check('const APP_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.1 runtime and save namespace must match")
+    check('const APP_VERSION = "1.1.1"' in game_js and 'const SAVE_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.1.1 must preserve the v1.1 save schema")
     check("[[80,19,1,0,0,0],[70,20,8,1.6,.3,.1],[60,25,10,3.4,1.2,.4],[50,20,20,11,3,1],[30,15,25,16,11,4]]" in game_js, "rod fishing weights must match the v1.1 table")
     check("return roll<.03?1:roll<.10?2:null" in game_js, "high areas must drop 3% mid and 7% high stones without low stones")
     check("return roll<(20/55)?2:1" in game_js, "high normal rewards must be limited to mid and high grades")
@@ -199,8 +199,11 @@ def main() -> int:
         "GAME_DESIGN_MASTER_v1.1.md",
         "HANDOFF_v1.1.md",
         "BUILD_REPORT_v1.1.md",
+        "BUILD_REPORT_v1.1.1.md",
         "src-tauri/tauri.android.conf.json",
         "tools/patch_android.py",
+        "tools/verify_android_package.py",
+        "tools/android_smoke_test.sh",
         ".github/workflows/windows-build.yml",
         ".github/workflows/android-build.yml",
     ):
@@ -209,13 +212,16 @@ def main() -> int:
     windows_workflow = (ROOT / ".github/workflows/windows-build.yml").read_text(encoding="utf-8")
     android_workflow = (ROOT / ".github/workflows/android-build.yml").read_text(encoding="utf-8")
     check("tauri-apps/tauri-action@v1" in windows_workflow and "uploadWorkflowArtifacts: true" in windows_workflow, "Windows workflow must publish build artifacts")
-    check("npx tauri android build --ci --apk --target aarch64" in android_workflow, "Android workflow must build an optimized ARM64 APK")
-    check("targets: aarch64-linux-android" in android_workflow, "Android workflow must install the ARM64 Rust target")
+    check("--split-per-abi --target aarch64 --target x86_64" in android_workflow, "Android workflow must build ARM64 release and x86_64 runtime-test APKs")
+    check("targets: aarch64-linux-android,x86_64-linux-android" in android_workflow, "Android workflow must install ARM64 and x86_64 Rust targets")
     check("apksigner\" verify --verbose --print-certs" in android_workflow and "actions/upload-artifact@v4" in android_workflow, "Android workflow must sign, verify, and publish the APK")
     check("python3 tools/patch_android.py --check" in android_workflow, "Android workflow must verify immersive mode and the short app label")
+    check(android_workflow.index("npx tauri android init --ci") < android_workflow.index("tauri icon src-tauri/icons/icon.png"), "Android icons must be generated after android init")
+    check("python3 tools/verify_android_package.py --generated" in android_workflow, "Android workflow must verify the generated axe icons")
+    check("reactivecircus/android-emulator-runner@v2" in android_workflow and "tools/android_smoke_test.sh" in android_workflow, "Android workflow must install and launch the app in an emulator")
     tauri_config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     check(tauri_config.get("bundle", {}).get("targets") == ["nsis"], "Windows bundle must avoid WiX and build the NSIS setup executable")
-    check(tauri_config.get("version") == "1.1.0", "Tauri version must be 1.1.0")
+    check(tauri_config.get("version") == "1.1.1", "Tauri version must be 1.1.1")
     android_config = json.loads((ROOT / "src-tauri/tauri.android.conf.json").read_text(encoding="utf-8"))
     check(android_config.get("productName") == "이세계나무꾼", "Android launcher name must use the short Korean title")
     main_rs = (ROOT / "src-tauri/src/main.rs").read_text(encoding="utf-8")
