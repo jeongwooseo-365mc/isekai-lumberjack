@@ -22,6 +22,11 @@ smoke_status=0
 trap 'smoke_status=$?; if (( smoke_status != 0 )); then dump_diagnostics; fi' EXIT
 
 adb install --no-streaming -r "$apk" | tee release/android-install.txt
+# Headless API 35 emulators can surface an unrelated home-launcher ANR over
+# the game. The activity is launched directly below, so stop both common home
+# packages before clearing logs to keep system UI out of the app QA.
+adb shell am force-stop com.google.android.apps.nexuslauncher >/dev/null 2>&1 || true
+adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
 adb logcat -c
 adb shell am force-stop "$package"
 # A fresh emulator otherwise covers the game with Android's one-time
@@ -65,6 +70,10 @@ dump_window() {
 
 tutorial_pattern='Viewing full screen|To exit, swipe down|GOT IT'
 dump_window
+if [[ -f release/android-window.xml ]] && grep -Eiq "is(n't| not) responding|is not responding" release/android-window.xml; then
+  echo "Android launch ERROR: emulator system ANR dialog covers the game" >&2
+  exit 1
+fi
 if [[ -f release/android-window.xml ]] && grep -Eiq "$tutorial_pattern" release/android-window.xml; then
   tap_point="$(python3 - release/android-window.xml <<'PY'
 import re
