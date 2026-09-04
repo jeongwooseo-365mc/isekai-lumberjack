@@ -152,7 +152,9 @@ sleep 7
 check_alive "opening scene 3"
 adb exec-out screencap -p > release/android-opening-3.png
 
-sleep 6
+# Screenshot transfer time varies on hosted emulators. A full scene interval
+# guarantees that the 18-second opening has completed before the final capture.
+sleep 20
 check_alive "main game entry"
 adb exec-out screencap -p > release/android-main.png
 
