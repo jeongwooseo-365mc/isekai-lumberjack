@@ -103,12 +103,12 @@ jobs:
             "$build_tools/apksigner" verify --verbose --print-certs "$output"
           }
 
-          sign_apk "$arm_apk" "$RUNNER_TEMP/isekai-lumberjack-arm64-aligned.apk" "release/isekai-lumberjack-v1.1.2-android-arm64.apk"
-          sign_apk "$x86_apk" "$RUNNER_TEMP/isekai-lumberjack-x86_64-aligned.apk" "$RUNNER_TEMP/isekai-lumberjack-v1.1.2-android-x86_64.apk"
-          echo "X86_APK=$RUNNER_TEMP/isekai-lumberjack-v1.1.2-android-x86_64.apk" >> "$GITHUB_ENV"
+          sign_apk "$arm_apk" "$RUNNER_TEMP/isekai-lumberjack-arm64-aligned.apk" "release/isekai-lumberjack-v1.1.3-android-arm64.apk"
+          sign_apk "$x86_apk" "$RUNNER_TEMP/isekai-lumberjack-x86_64-aligned.apk" "$RUNNER_TEMP/isekai-lumberjack-v1.1.3-android-x86_64.apk"
+          echo "X86_APK=$RUNNER_TEMP/isekai-lumberjack-v1.1.3-android-x86_64.apk" >> "$GITHUB_ENV"
 
-          python3 tools/verify_android_package.py --apk "release/isekai-lumberjack-v1.1.2-android-arm64.apk" --abi arm64-v8a
-          python3 tools/verify_android_package.py --apk "$RUNNER_TEMP/isekai-lumberjack-v1.1.2-android-x86_64.apk" --abi x86_64
+          python3 tools/verify_android_package.py --apk "release/isekai-lumberjack-v1.1.3-android-arm64.apk" --abi arm64-v8a
+          python3 tools/verify_android_package.py --apk "$RUNNER_TEMP/isekai-lumberjack-v1.1.3-android-x86_64.apk" --abi x86_64
       - name: Enable KVM for launch smoke test
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -127,9 +127,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: isekai-lumberjack-v1.1.2-android-arm64-apk
+          name: isekai-lumberjack-v1.1.3-android-arm64-apk
           path: |
-            release/isekai-lumberjack-v1.1.2-android-arm64.apk
+            release/isekai-lumberjack-v1.1.3-android-arm64.apk
             release/android-launch.png
             release/android-intro.png
             release/android-opening-1.png
@@ -168,4 +168,4 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         with:
           uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: isekai-lumberjack-v1.1.2-windows-[bundle]
+          workflowArtifactNamePattern: isekai-lumberjack-v1.1.3-windows-[bundle]
