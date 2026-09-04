@@ -6,6 +6,21 @@ package="com.isekailumberjack.release"
 activity="$package/.MainActivity"
 mkdir -p release
 
+dump_diagnostics() {
+  {
+    echo "===== crash buffer ====="
+    adb logcat -d -b crash -v threadtime || true
+    echo "===== app/runtime log ====="
+    adb logcat -d -v threadtime | grep -E \
+      "$package|AndroidRuntime|FATAL EXCEPTION|Fatal signal|linker|WebView|chromium|crash_dump|DEBUG" | tail -n 1200 || true
+    echo "===== package state ====="
+    adb shell dumpsys package "$package" | tail -n 240 || true
+  } | tee release/android-failure-log.txt
+}
+
+smoke_status=0
+trap 'smoke_status=$?; if (( smoke_status != 0 )); then dump_diagnostics; fi' EXIT
+
 adb install --no-streaming -r "$apk" | tee release/android-install.txt
 adb logcat -c
 adb shell am force-stop "$package"
@@ -22,9 +37,8 @@ for _ in $(seq 1 20); do
   sleep 1
 done
 
-pid="$(adb shell pidof "$package" | tr -d '\r')"
+pid="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
 if [[ -z "$pid" ]]; then
-  adb logcat -d -b crash || true
   echo "Android launch ERROR: process is not alive" >&2
   exit 1
 fi
@@ -103,7 +117,7 @@ adb shell input tap "$start_x" "$start_y"
 check_alive() {
   local stage="$1"
   local current_pid
-  current_pid="$(adb shell pidof "$package" | tr -d '\r')"
+  current_pid="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
   if [[ -z "$current_pid" ]]; then
     adb logcat -d -b crash | tee -a release/android-launch-check.txt || true
     echo "Android launch ERROR: process died during $stage" >&2
