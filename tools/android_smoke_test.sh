@@ -44,9 +44,40 @@ if grep -Fq "$package" <<<"$crash_log"; then
   exit 1
 fi
 
-adb shell uiautomator dump /sdcard/android-window.xml >/dev/null 2>&1 || true
-adb pull /sdcard/android-window.xml release/android-window.xml >/dev/null 2>&1 || true
-if [[ -f release/android-window.xml ]] && grep -Eiq 'Viewing full screen|To exit, swipe down|GOT IT' release/android-window.xml; then
+dump_window() {
+  adb shell uiautomator dump /sdcard/android-window.xml >/dev/null 2>&1 || true
+  adb pull /sdcard/android-window.xml release/android-window.xml >/dev/null 2>&1 || true
+}
+
+tutorial_pattern='Viewing full screen|To exit, swipe down|GOT IT'
+dump_window
+if [[ -f release/android-window.xml ]] && grep -Eiq "$tutorial_pattern" release/android-window.xml; then
+  tap_point="$(python3 - release/android-window.xml <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+for node in root.iter("node"):
+    label = f'{node.attrib.get("text", "")} {node.attrib.get("content-desc", "")}'.upper()
+    if "GOT IT" not in label:
+        continue
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+    if match:
+        left, top, right, bottom = map(int, match.groups())
+        print((left + right) // 2, (top + bottom) // 2)
+        break
+PY
+)"
+  if [[ "$tap_point" =~ ^[0-9]+\ [0-9]+$ ]]; then
+    adb shell input tap $tap_point
+  else
+    adb shell input keyevent 66
+  fi
+  sleep 2
+  dump_window
+fi
+if [[ -f release/android-window.xml ]] && grep -Eiq "$tutorial_pattern" release/android-window.xml; then
   echo "Android launch ERROR: immersive-mode tutorial still covers the game" >&2
   exit 1
 fi
