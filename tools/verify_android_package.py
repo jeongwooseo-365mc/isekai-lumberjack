@@ -149,7 +149,7 @@ def verify_apk(apk: Path, abi: str, resource_root: Path = ANDROID_RES) -> None:
         if not any(name.startswith(f"lib/{abi}/") and name.endswith(".so") for name in names):
             raise RuntimeError(f"APK does not contain {abi} native library")
         config = json.loads(archive.read("assets/tauri.conf.json"))
-        if config.get("identifier") != "com.isekailumberjack.release":
+        if config.get("identifier") != "com.isekailumberjack.stable":
             raise RuntimeError("unexpected Android application identifier")
         if config.get("productName") != "이세계나무꾼":
             raise RuntimeError("unexpected Android launcher label")
