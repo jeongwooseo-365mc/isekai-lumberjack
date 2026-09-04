@@ -2,7 +2,7 @@
 set -euo pipefail
 
 apk="${1:?APK path is required}"
-package="com.isekailumberjack.release"
+package="com.isekailumberjack.stable"
 activity="$package/.MainActivity"
 mkdir -p release
 
