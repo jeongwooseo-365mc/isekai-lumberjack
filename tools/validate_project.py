@@ -234,7 +234,7 @@ def main() -> int:
     check("api-level: 35" in release_workflow, "Android runtime QA must match Android 15 devices such as Galaxy S25")
     check(not (ROOT / ".github/workflows/android-build.yml").exists() and not (ROOT / ".github/workflows/windows-build.yml").exists(), "legacy duplicate build workflows must be removed")
     android_smoke = (ROOT / "tools/android_smoke_test.sh").read_text(encoding="utf-8")
-    check("--screenshot release/android-launch.png" in android_smoke, "Android smoke test must reject a blank launch screen")
+    check("--screenshot release/android-intro.png" in android_smoke, "Android smoke test must reject a blank launch screen")
     check("android-opening-1.png" in android_smoke and "android-main.png" in android_smoke and "--transition" in android_smoke, "Android smoke test must tap through the opening story into the main game")
     tauri_config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     check(tauri_config.get("bundle", {}).get("targets") == ["nsis"], "Windows bundle must avoid WiX and build the NSIS setup executable")
