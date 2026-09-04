@@ -9,6 +9,10 @@ mkdir -p release
 adb install --no-streaming -r "$apk" | tee release/android-install.txt
 adb logcat -c
 adb shell am force-stop "$package"
+# A fresh emulator otherwise covers the game with Android's one-time
+# immersive-mode tutorial. Confirm it up front so the captured screen is the
+# actual game UI, not a SystemUI overlay.
+adb shell settings put secure immersive_mode_confirmations confirmed || true
 adb shell am start -W -n "$activity" | tee release/android-launch-check.txt
 
 for _ in $(seq 1 20); do
@@ -37,6 +41,13 @@ crash_log="$(adb logcat -d -b crash || true)"
 if grep -Fq "$package" <<<"$crash_log"; then
   printf '%s\n' "$crash_log" >> release/android-launch-check.txt
   echo "Android launch ERROR: crash log found" >&2
+  exit 1
+fi
+
+adb shell uiautomator dump /sdcard/android-window.xml >/dev/null 2>&1 || true
+adb pull /sdcard/android-window.xml release/android-window.xml >/dev/null 2>&1 || true
+if [[ -f release/android-window.xml ]] && grep -Eiq 'Viewing full screen|To exit, swipe down|GOT IT' release/android-window.xml; then
+  echo "Android launch ERROR: immersive-mode tutorial still covers the game" >&2
   exit 1
 fi
 
