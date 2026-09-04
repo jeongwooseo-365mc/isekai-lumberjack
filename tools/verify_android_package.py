@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import struct
 import sys
 import zipfile
+import zlib
 from pathlib import Path
 
 
@@ -33,6 +35,98 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def png_pixels(data: bytes) -> tuple[int, int, bytes]:
+    """Decode the 8-bit, non-interlaced PNG forms used by launcher icons."""
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("not a PNG")
+    position = 8
+    width = height = bit_depth = color_type = interlace = 0
+    palette = b""
+    transparency = b""
+    compressed = bytearray()
+    while position + 12 <= len(data):
+        length = struct.unpack(">I", data[position : position + 4])[0]
+        chunk_type = data[position + 4 : position + 8]
+        payload = data[position + 8 : position + 8 + length]
+        position += 12 + length
+        if chunk_type == b"IHDR":
+            width, height, bit_depth, color_type, _, _, interlace = struct.unpack(">IIBBBBB", payload)
+        elif chunk_type == b"PLTE":
+            palette = payload
+        elif chunk_type == b"tRNS":
+            transparency = payload
+        elif chunk_type == b"IDAT":
+            compressed.extend(payload)
+        elif chunk_type == b"IEND":
+            break
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color_type)
+    if not width or not height or bit_depth != 8 or interlace != 0 or not channels:
+        raise ValueError("unsupported PNG format")
+    stride = width * channels
+    raw = zlib.decompress(bytes(compressed))
+    rows: list[bytearray] = []
+    offset = 0
+    previous = bytearray(stride)
+
+    def paeth(left: int, up: int, upper_left: int) -> int:
+        estimate = left + up - upper_left
+        distances = (abs(estimate - left), abs(estimate - up), abs(estimate - upper_left))
+        return (left, up, upper_left)[distances.index(min(distances))]
+
+    for _ in range(height):
+        filter_type = raw[offset]
+        offset += 1
+        source = raw[offset : offset + stride]
+        offset += stride
+        row = bytearray(stride)
+        for index, value in enumerate(source):
+            left = row[index - channels] if index >= channels else 0
+            up = previous[index]
+            upper_left = previous[index - channels] if index >= channels else 0
+            predictor = {
+                0: 0,
+                1: left,
+                2: up,
+                3: (left + up) // 2,
+                4: paeth(left, up, upper_left),
+            }.get(filter_type)
+            if predictor is None:
+                raise ValueError("unsupported PNG filter")
+            row[index] = (value + predictor) & 0xFF
+        rows.append(row)
+        previous = row
+
+    rgba = bytearray()
+    for row in rows:
+        for index in range(0, len(row), channels):
+            pixel = row[index : index + channels]
+            if color_type == 6:
+                red, green, blue, alpha = pixel
+            elif color_type == 2:
+                red, green, blue = pixel
+                alpha = 255
+            elif color_type == 0:
+                red = green = blue = pixel[0]
+                alpha = 255
+            elif color_type == 4:
+                red = green = blue = pixel[0]
+                alpha = pixel[1]
+            else:
+                palette_index = pixel[0]
+                palette_offset = palette_index * 3
+                red, green, blue = palette[palette_offset : palette_offset + 3]
+                alpha = transparency[palette_index] if palette_index < len(transparency) else 255
+            if alpha == 0:
+                red = green = blue = 0
+            rgba.extend((red, green, blue, alpha))
+    return width, height, bytes(rgba)
+
+
+def pixel_signature(data: bytes) -> tuple[int, int, str]:
+    width, height, pixels = png_pixels(data)
+    return width, height, digest(pixels)
+
+
 def verify_generated(resource_root: Path = ANDROID_RES) -> None:
     errors: list[str] = []
     for relative, expected in EXPECTED_ICONS.items():
@@ -46,7 +140,7 @@ def verify_generated(resource_root: Path = ANDROID_RES) -> None:
     print(f"Android icons OK: {len(EXPECTED_ICONS)} axe launcher resources")
 
 
-def verify_apk(apk: Path, abi: str) -> None:
+def verify_apk(apk: Path, abi: str, resource_root: Path = ANDROID_RES) -> None:
     if not apk.is_file():
         raise RuntimeError(f"APK not found: {apk}")
     expected_hashes = set(EXPECTED_ICONS.values())
@@ -59,12 +153,22 @@ def verify_apk(apk: Path, abi: str) -> None:
             raise RuntimeError("unexpected Android application identifier")
         if config.get("productName") != "이세계나무꾼":
             raise RuntimeError("unexpected Android launcher label")
-        packaged_hashes = {
-            digest(archive.read(name))
-            for name in names
-            if name.startswith("res/") and name.endswith(".png")
+        packaged_hashes = set()
+        packaged_pixels = set()
+        for name in names:
+            if not (name.startswith("res/") and name.endswith(".png")):
+                continue
+            data = archive.read(name)
+            packaged_hashes.add(digest(data))
+            try:
+                packaged_pixels.add(pixel_signature(data))
+            except (IndexError, struct.error, ValueError, zlib.error):
+                pass
+        expected_pixels = {
+            pixel_signature((resource_root / relative).read_bytes())
+            for relative in EXPECTED_ICONS
         }
-        if not expected_hashes.intersection(packaged_hashes):
+        if not expected_hashes.intersection(packaged_hashes) and not expected_pixels.intersection(packaged_pixels):
             raise RuntimeError("APK does not contain the generated axe launcher icon")
     print(f"Android APK OK: {apk.name} · {abi} · axe icon")
 
@@ -82,7 +186,7 @@ def main() -> int:
         if args.apk:
             if not args.abi:
                 parser.error("--apk requires --abi")
-            verify_apk(args.apk, args.abi)
+            verify_apk(args.apk, args.abi, args.res_root)
         if not args.generated and not args.apk:
             parser.error("select --generated or --apk")
     except (KeyError, json.JSONDecodeError, OSError, RuntimeError, zipfile.BadZipFile) as error:
