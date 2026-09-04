@@ -33,12 +33,12 @@ import android.view.WindowInsetsController
 class MainActivity : TauriActivity() {{
   override fun onCreate(savedInstanceState: Bundle?) {{
     super.onCreate(savedInstanceState)
-    enterImmersiveMode()
+    window.decorView.post {{ enterImmersiveMode() }}
   }}
 
   override fun onResume() {{
     super.onResume()
-    enterImmersiveMode()
+    window.decorView.post {{ enterImmersiveMode() }}
   }}
 
   override fun onWindowFocusChanged(hasFocus: Boolean) {{
@@ -48,14 +48,15 @@ class MainActivity : TauriActivity() {{
 
   @Suppress("DEPRECATION")
   private fun enterImmersiveMode() {{
+    val decorView = window.decorView
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {{
       window.setDecorFitsSystemWindows(false)
-      window.insetsController?.apply {{
+      decorView.windowInsetsController?.apply {{
         hide(WindowInsets.Type.systemBars())
         systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       }}
     }} else {{
-      window.decorView.systemUiVisibility =
+      decorView.systemUiVisibility =
         View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
         View.SYSTEM_UI_FLAG_FULLSCREEN or
         View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
@@ -102,10 +103,14 @@ def verify() -> None:
         "WindowInsets.Type.systemBars()",
         "BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE",
         "onWindowFocusChanged",
+        "window.decorView.post { enterImmersiveMode() }",
+        "decorView.windowInsetsController",
     )
     missing = [token for token in required if token not in source]
     if missing:
         raise RuntimeError(f"몰입 화면 코드가 누락되었습니다: {', '.join(missing)}")
+    if "window.insetsController" in source:
+        raise RuntimeError("Android 15에서 충돌하는 조기 WindowInsetsController 접근이 남아 있습니다.")
     if f'>{SHORT_NAME}</string>' not in xml:
         raise RuntimeError("Android 앱 이름이 짧은 이름으로 설정되지 않았습니다.")
 
