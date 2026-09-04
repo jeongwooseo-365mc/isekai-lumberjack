@@ -84,4 +84,63 @@ fi
 
 adb exec-out screencap -p > release/android-launch.png
 python3 tools/verify_android_package.py --screenshot release/android-launch.png
-printf 'Android launch OK: pid=%s activity=%s\n' "$pid" "$activity" | tee -a release/android-launch-check.txt
+cp release/android-launch.png release/android-intro.png
+
+# Exercise the path that a real player takes. The old smoke test stopped at
+# the title screen and therefore could not catch a WebView failure after the
+# Game Start tap. The button sits at the horizontal centre and about 82% of
+# the fullscreen viewport on every supported phone aspect ratio.
+screen_size="$(adb shell wm size | tr -d '\r' | tail -1 | sed -E 's/.*: ([0-9]+)x([0-9]+)/\1 \2/')"
+if [[ ! "$screen_size" =~ ^[0-9]+\ [0-9]+$ ]]; then
+  echo "Android launch ERROR: cannot determine emulator screen size" >&2
+  exit 1
+fi
+read -r screen_width screen_height <<<"$screen_size"
+start_x=$((screen_width / 2))
+start_y=$((screen_height * 82 / 100))
+adb shell input tap "$start_x" "$start_y"
+
+check_alive() {
+  local stage="$1"
+  local current_pid
+  current_pid="$(adb shell pidof "$package" | tr -d '\r')"
+  if [[ -z "$current_pid" ]]; then
+    adb logcat -d -b crash | tee -a release/android-launch-check.txt || true
+    echo "Android launch ERROR: process died during $stage" >&2
+    exit 1
+  fi
+  local current_crash
+  current_crash="$(adb logcat -d -b crash || true)"
+  if grep -Fq "$package" <<<"$current_crash"; then
+    printf '%s\n' "$current_crash" >> release/android-launch-check.txt
+    echo "Android launch ERROR: crash during $stage" >&2
+    exit 1
+  fi
+}
+
+sleep 1
+check_alive "opening scene 1"
+adb exec-out screencap -p > release/android-opening-1.png
+python3 tools/verify_android_package.py --screenshot release/android-opening-1.png
+python3 tools/verify_android_package.py --transition release/android-intro.png release/android-opening-1.png
+
+sleep 5
+check_alive "opening scene 2"
+adb exec-out screencap -p > release/android-opening-2.png
+python3 tools/verify_android_package.py --screenshot release/android-opening-2.png
+python3 tools/verify_android_package.py --transition release/android-opening-1.png release/android-opening-2.png
+
+sleep 7
+check_alive "opening scene 3"
+adb exec-out screencap -p > release/android-opening-3.png
+python3 tools/verify_android_package.py --screenshot release/android-opening-3.png
+python3 tools/verify_android_package.py --transition release/android-opening-2.png release/android-opening-3.png
+
+sleep 6
+check_alive "main game entry"
+adb exec-out screencap -p > release/android-main.png
+python3 tools/verify_android_package.py --screenshot release/android-main.png
+python3 tools/verify_android_package.py --transition release/android-opening-3.png release/android-main.png
+
+printf 'Android full startup OK: pid=%s activity=%s startTap=%s,%s intro->story1->story2->story3->main\n' \
+  "$pid" "$activity" "$start_x" "$start_y" | tee -a release/android-launch-check.txt

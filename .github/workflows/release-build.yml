@@ -114,13 +114,13 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install and launch on Android emulator
+      - name: Install and play through startup on Android 15 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
-          target: default
+          api-level: 35
+          target: google_apis
           arch: x86_64
-          profile: pixel_2
+          profile: pixel_6
           disable-animations: true
           script: bash tools/android_smoke_test.sh "$X86_APK"
       - name: Upload installable APK
@@ -130,6 +130,11 @@ jobs:
           path: |
             release/isekai-lumberjack-v1.1.2-android-arm64.apk
             release/android-launch.png
+            release/android-intro.png
+            release/android-opening-1.png
+            release/android-opening-2.png
+            release/android-opening-3.png
+            release/android-main.png
             release/android-launch-check.txt
             release/android-install.txt
             release/android-window.xml
