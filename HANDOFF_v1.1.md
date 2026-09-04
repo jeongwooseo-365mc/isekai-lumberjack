@@ -47,7 +47,8 @@
 ### 모바일·Windows 셸
 
 - Android 표시 이름은 `이세계나무꾼`입니다.
-- Android와 Windows는 `src-tauri/icons/icon.png`의 같은 도끼 로고를 사용합니다.
+- Windows는 `src-tauri/icons/icon.png` 원본을 사용하고 Android는 둥근 마스크 안전 여백을 더한 `src-tauri/icons/icon-mobile.png`를 사용합니다.
+- Android v1.1.2 식별자는 `com.isekailumberjack.release`이며 이전 테스트 앱과 별도 설치됩니다. Windows 식별자는 기존 값을 유지합니다.
 - `tools/patch_android.py`가 생성된 `MainActivity.kt`에 시스템 상태·내비게이션 바 숨김을 적용합니다.
 - Android 11 이상은 스와이프로 시스템 바를 일시 표시하는 transient-bars 동작을 사용하고 구버전은 immersive-sticky 플래그를 사용합니다.
 - Android 초기화 뒤에는 항상 패치 스크립트를 실행해야 합니다. 로컬 배치 파일과 GitHub Actions에 이 단계를 포함했습니다.
@@ -93,11 +94,10 @@
 
 ## 배포
 
-- Windows 자동 빌드: `.github/workflows/windows-build.yml`
-- Android 자동 빌드: `.github/workflows/android-build.yml`
+- Windows·Android 통합 자동 빌드: `.github/workflows/release-build.yml`
 - Windows 로컬 빌드: `BUILD_WINDOWS.bat`
 - Android 로컬 빌드: `BUILD_ANDROID.bat`
-- GitHub `main` 푸시 시 Windows NSIS와 ARM64 테스트 서명 APK를 생성합니다.
+- GitHub `main` 푸시 시 하나의 Actions 실행에서 Windows NSIS와 ARM64 테스트 서명 APK를 병렬 생성합니다.
 - APK 테스트 키는 Actions 실행마다 달라질 수 있습니다. 스토어 배포 전 고정 릴리스 키로 교체해야 합니다.
 
 ## 검증 범위

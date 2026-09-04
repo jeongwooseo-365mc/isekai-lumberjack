@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android and Windows
 
 on:
   workflow_dispatch:
@@ -9,11 +9,12 @@ on:
       - "**/*.md"
 
 concurrency:
-  group: android-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  android:
+    name: Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -45,11 +46,11 @@ jobs:
         run: npm run prepare:web
       - name: Initialize Android project
         run: npx tauri android init --ci
-      - name: Generate shared desktop and mobile icons
-        run: ./node_modules/.bin/tauri icon src-tauri/icons/icon.png
+      - name: Generate padded Android launcher icons
+        run: ./node_modules/.bin/tauri icon src-tauri/icons/icon-mobile.png
       - name: Apply immersive mobile shell and short app label
         run: python3 tools/patch_android.py
-      - name: Verify Android shell, label, and generated axe icons
+      - name: Verify Android identity, shell, and launcher icons
         run: |
           python3 tools/patch_android.py --check
           python3 tools/verify_android_package.py --generated
@@ -102,12 +103,12 @@ jobs:
             "$build_tools/apksigner" verify --verbose --print-certs "$output"
           }
 
-          sign_apk "$arm_apk" "$RUNNER_TEMP/isekai-lumberjack-arm64-aligned.apk" "release/isekai-lumberjack-v1.1.1-android-arm64.apk"
-          sign_apk "$x86_apk" "$RUNNER_TEMP/isekai-lumberjack-x86_64-aligned.apk" "$RUNNER_TEMP/isekai-lumberjack-v1.1.1-android-x86_64.apk"
-          echo "X86_APK=$RUNNER_TEMP/isekai-lumberjack-v1.1.1-android-x86_64.apk" >> "$GITHUB_ENV"
+          sign_apk "$arm_apk" "$RUNNER_TEMP/isekai-lumberjack-arm64-aligned.apk" "release/isekai-lumberjack-v1.1.2-android-arm64.apk"
+          sign_apk "$x86_apk" "$RUNNER_TEMP/isekai-lumberjack-x86_64-aligned.apk" "$RUNNER_TEMP/isekai-lumberjack-v1.1.2-android-x86_64.apk"
+          echo "X86_APK=$RUNNER_TEMP/isekai-lumberjack-v1.1.2-android-x86_64.apk" >> "$GITHUB_ENV"
 
-          python3 tools/verify_android_package.py --apk "release/isekai-lumberjack-v1.1.1-android-arm64.apk" --abi arm64-v8a
-          python3 tools/verify_android_package.py --apk "$RUNNER_TEMP/isekai-lumberjack-v1.1.1-android-x86_64.apk" --abi x86_64
+          python3 tools/verify_android_package.py --apk "release/isekai-lumberjack-v1.1.2-android-arm64.apk" --abi arm64-v8a
+          python3 tools/verify_android_package.py --apk "$RUNNER_TEMP/isekai-lumberjack-v1.1.2-android-x86_64.apk" --abi x86_64
       - name: Enable KVM for launch smoke test
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -125,12 +126,39 @@ jobs:
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: isekai-lumberjack-v1.1.1-android-arm64-apk
+          name: isekai-lumberjack-v1.1.2-android-arm64-apk
           path: |
-            release/isekai-lumberjack-v1.1.1-android-arm64.apk
+            release/isekai-lumberjack-v1.1.2-android-arm64.apk
             release/android-launch.png
             release/android-launch-check.txt
             release/android-install.txt
             release/android-window.xml
           if-no-files-found: error
           retention-days: 90
+
+  windows:
+    name: Windows NSIS
+    runs-on: windows-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Install dependencies
+        run: npm install
+      - name: Verify game logic
+        run: node tools/test_game.js
+      - name: Prepare web assets
+        run: npm run prepare:web
+      - name: Build Windows installer
+        uses: tauri-apps/tauri-action@v1
+        with:
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: isekai-lumberjack-v1.1.2-windows-[bundle]

@@ -16,19 +16,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ANDROID_RES = ROOT / "src-tauri" / "gen" / "android" / "app" / "src" / "main" / "res"
 
-# Deterministic output of Tauri CLI 2.11.4 for src-tauri/icons/icon.png.
-EXPECTED_ICONS = {
-    "mipmap-hdpi/ic_launcher.png": "7edeefd44c7823f8e77b067d536b8793371926eaa60ea1ed4b33728aae9a7419",
-    "mipmap-mdpi/ic_launcher.png": "8ee63cb1dd1d0599ce312a37c7096e4d032d42de5ec6338874fd6bd9805b18ca",
-    "mipmap-xhdpi/ic_launcher.png": "6352799de5ba1342f69c2db2ab344bd23f6c04aba703469c1d75c45889d6441c",
-    "mipmap-xxhdpi/ic_launcher.png": "f46882ced69ffba9c4ef66b02c1d690165001bdbfdc9fa24a8e7d59c51627317",
-    "mipmap-xxxhdpi/ic_launcher.png": "b49ee291c1d35723d002c55a2d44289e39684234a127942f191030d3294bfd5b",
-    "mipmap-hdpi/ic_launcher_foreground.png": "ac21b1bf7f3c4bafb42fede4a2e807625acc8aeeab93d5211a53f656e555b908",
-    "mipmap-mdpi/ic_launcher_foreground.png": "168e1bdcc33de710f46ca77741752db24c5083b4742075bddf28b6c84c5c664d",
-    "mipmap-xhdpi/ic_launcher_foreground.png": "2140a4c440455c6e7e7d5a99f74b673d66b559d3673ab97ef12273002b94d523",
-    "mipmap-xxhdpi/ic_launcher_foreground.png": "705423bf0763760a1341bc99d54a46e0087a361cd76047c574f7d0633c0cd1df",
-    "mipmap-xxxhdpi/ic_launcher_foreground.png": "2242411fb5821d35a8c03455927ca115288d0ac32b4cb0cdc6a8d63b2d927510",
-}
+MOBILE_ICON = ROOT / "src-tauri" / "icons" / "icon-mobile.png"
+MOBILE_ICON_SHA256 = "13d4c796288e34ef2fff07694cd31911c945b252a6f0136f42a33d6b6909d170"
+EXPECTED_ICON_PATHS = tuple(
+    f"mipmap-{density}/{name}.png"
+    for density in ("mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi")
+    for name in ("ic_launcher", "ic_launcher_foreground")
+)
 
 
 def digest(data: bytes) -> str:
@@ -129,48 +123,52 @@ def pixel_signature(data: bytes) -> tuple[int, int, str]:
 
 def verify_generated(resource_root: Path = ANDROID_RES) -> None:
     errors: list[str] = []
-    for relative, expected in EXPECTED_ICONS.items():
+    if not MOBILE_ICON.is_file() or digest(MOBILE_ICON.read_bytes()) != MOBILE_ICON_SHA256:
+        errors.append("Android mobile icon source does not match the reviewed safe-area artwork")
+    for relative in EXPECTED_ICON_PATHS:
         path = resource_root / relative
         if not path.is_file():
             errors.append(f"missing generated icon: {relative}")
-        elif digest(path.read_bytes()) != expected:
-            errors.append(f"wrong generated icon: {relative}")
+            continue
+        try:
+            width, height, pixels = png_pixels(path.read_bytes())
+            if width != height or width < 48 or not any(pixels[3::4]):
+                errors.append(f"invalid generated icon: {relative}")
+        except (IndexError, struct.error, ValueError, zlib.error) as error:
+            errors.append(f"unreadable generated icon {relative}: {error}")
     if errors:
         raise RuntimeError("; ".join(errors))
-    print(f"Android icons OK: {len(EXPECTED_ICONS)} axe launcher resources")
+    print(f"Android icons OK: {len(EXPECTED_ICON_PATHS)} safe-area axe launcher resources")
 
 
 def verify_apk(apk: Path, abi: str, resource_root: Path = ANDROID_RES) -> None:
     if not apk.is_file():
         raise RuntimeError(f"APK not found: {apk}")
-    expected_hashes = set(EXPECTED_ICONS.values())
     with zipfile.ZipFile(apk) as archive:
         names = archive.namelist()
         if not any(name.startswith(f"lib/{abi}/") and name.endswith(".so") for name in names):
             raise RuntimeError(f"APK does not contain {abi} native library")
         config = json.loads(archive.read("assets/tauri.conf.json"))
-        if config.get("identifier") != "com.isekailumberjack.game":
+        if config.get("identifier") != "com.isekailumberjack.release":
             raise RuntimeError("unexpected Android application identifier")
         if config.get("productName") != "이세계나무꾼":
             raise RuntimeError("unexpected Android launcher label")
-        packaged_hashes = set()
         packaged_pixels = set()
         for name in names:
             if not (name.startswith("res/") and name.endswith(".png")):
                 continue
             data = archive.read(name)
-            packaged_hashes.add(digest(data))
             try:
                 packaged_pixels.add(pixel_signature(data))
             except (IndexError, struct.error, ValueError, zlib.error):
                 pass
         expected_pixels = {
             pixel_signature((resource_root / relative).read_bytes())
-            for relative in EXPECTED_ICONS
+            for relative in EXPECTED_ICON_PATHS
         }
-        if not expected_hashes.intersection(packaged_hashes) and not expected_pixels.intersection(packaged_pixels):
+        if not expected_pixels.intersection(packaged_pixels):
             raise RuntimeError("APK does not contain the generated axe launcher icon")
-    print(f"Android APK OK: {apk.name} · {abi} · axe icon")
+    print(f"Android APK OK: {apk.name} · {abi} · fresh app ID · safe-area axe icon")
 
 
 def verify_screenshot(screenshot: Path) -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.1.1."""
+"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.1.2."""
 
 from __future__ import annotations
 
@@ -119,6 +119,16 @@ def main() -> int:
         check_image(f"assets/ui/{name}.png", (256, 256))
     check_image("assets/ui/logo_mark.png", (512, 512))
     check_image("src-tauri/icons/icon.png", (512, 512))
+    check_image("src-tauri/icons/icon-mobile.png", (512, 512))
+    with Image.open(ROOT / "src-tauri/icons/icon-mobile.png") as mobile_icon:
+        alpha = mobile_icon.getchannel("A")
+        bounds = alpha.getbbox()
+        check(bounds is not None, "Android launcher artwork must not be empty")
+        if bounds:
+            left, top, right, bottom = bounds
+            margins = (left, top, mobile_icon.width - right, mobile_icon.height - bottom)
+            check(min(margins) >= 48, "Android launcher artwork must retain adaptive-icon safe margins")
+            check(margins[2] >= margins[0] + 10, "Android launcher artwork must prioritize the right-side axe blade")
 
     for kind in ("tree", "ore", "monster"):
         for grade in ("low", "mid", "high"):
@@ -178,7 +188,7 @@ def main() -> int:
     check("width: 100vw; max-width: 560px; width: min(100vw, 560px); height: 100vh; height: 100dvh" in css, "game shell must retain width and height fallbacks for older Android WebViews")
     check("top: 0; right: 0; bottom: 0; left: 0; inset: 0" in css, "full-screen layers must retain pre-inset Android WebView positioning")
     check("-webkit-overflow-scrolling: touch" in css and "overflow-y: auto" in css, "scrollable panels must retain touch scrolling")
-    check('const APP_VERSION = "1.1.1"' in game_js and 'const SAVE_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.1.1 must preserve the v1.1 save schema")
+    check('const APP_VERSION = "1.1.2"' in game_js and 'const SAVE_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.1.2 must preserve the v1.1 save schema")
     check("[[80,19,1,0,0,0],[70,20,8,1.6,.3,.1],[60,25,10,3.4,1.2,.4],[50,20,20,11,3,1],[30,15,25,16,11,4]]" in game_js, "rod fishing weights must match the v1.1 table")
     check("return roll<.03?1:roll<.10?2:null" in game_js, "high areas must drop 3% mid and 7% high stones without low stones")
     check("return roll<(20/55)?2:1" in game_js, "high normal rewards must be limited to mid and high grades")
@@ -202,32 +212,35 @@ def main() -> int:
         "HANDOFF_v1.1.md",
         "BUILD_REPORT_v1.1.md",
         "BUILD_REPORT_v1.1.1.md",
+        "BUILD_REPORT_v1.1.2.md",
         "src-tauri/tauri.android.conf.json",
         "tools/patch_android.py",
         "tools/verify_android_package.py",
         "tools/android_smoke_test.sh",
-        ".github/workflows/windows-build.yml",
-        ".github/workflows/android-build.yml",
+        ".github/workflows/release-build.yml",
     ):
         check((ROOT / relative).is_file(), f"missing project file: {relative}")
 
-    windows_workflow = (ROOT / ".github/workflows/windows-build.yml").read_text(encoding="utf-8")
-    android_workflow = (ROOT / ".github/workflows/android-build.yml").read_text(encoding="utf-8")
-    check("tauri-apps/tauri-action@v1" in windows_workflow and "uploadWorkflowArtifacts: true" in windows_workflow, "Windows workflow must publish build artifacts")
-    check("--split-per-abi --target aarch64 --target x86_64" in android_workflow, "Android workflow must build ARM64 release and x86_64 runtime-test APKs")
-    check("targets: aarch64-linux-android,x86_64-linux-android" in android_workflow, "Android workflow must install ARM64 and x86_64 Rust targets")
-    check("apksigner\" verify --verbose --print-certs" in android_workflow and "actions/upload-artifact@v4" in android_workflow, "Android workflow must sign, verify, and publish the APK")
-    check("python3 tools/patch_android.py --check" in android_workflow, "Android workflow must verify immersive mode and the short app label")
-    check(android_workflow.index("npx tauri android init --ci") < android_workflow.index("tauri icon src-tauri/icons/icon.png"), "Android icons must be generated after android init")
-    check("python3 tools/verify_android_package.py --generated" in android_workflow, "Android workflow must verify the generated axe icons")
-    check("reactivecircus/android-emulator-runner@v2" in android_workflow and "tools/android_smoke_test.sh" in android_workflow, "Android workflow must install and launch the app in an emulator")
+    release_workflow = (ROOT / ".github/workflows/release-build.yml").read_text(encoding="utf-8")
+    check("android:" in release_workflow and "windows:" in release_workflow, "one workflow must contain parallel Android and Windows jobs")
+    check("tauri-apps/tauri-action@v1" in release_workflow and "uploadWorkflowArtifacts: true" in release_workflow, "Windows job must publish build artifacts")
+    check("--split-per-abi --target aarch64 --target x86_64" in release_workflow, "Android job must build ARM64 release and x86_64 runtime-test APKs")
+    check("targets: aarch64-linux-android,x86_64-linux-android" in release_workflow, "Android job must install ARM64 and x86_64 Rust targets")
+    check("apksigner\" verify --verbose --print-certs" in release_workflow and "actions/upload-artifact@v4" in release_workflow, "Android job must sign, verify, and publish the APK")
+    check("python3 tools/patch_android.py --check" in release_workflow, "Android job must verify immersive mode and the short app label")
+    check(release_workflow.index("npx tauri android init --ci") < release_workflow.index("tauri icon src-tauri/icons/icon-mobile.png"), "Android safe-area icons must be generated after android init")
+    check("python3 tools/verify_android_package.py --generated" in release_workflow, "Android job must verify the generated axe icons")
+    check("reactivecircus/android-emulator-runner@v2" in release_workflow and "tools/android_smoke_test.sh" in release_workflow, "Android job must install and launch the app in an emulator")
+    check(not (ROOT / ".github/workflows/android-build.yml").exists() and not (ROOT / ".github/workflows/windows-build.yml").exists(), "legacy duplicate build workflows must be removed")
     android_smoke = (ROOT / "tools/android_smoke_test.sh").read_text(encoding="utf-8")
     check("--screenshot release/android-launch.png" in android_smoke, "Android smoke test must reject a blank launch screen")
     tauri_config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     check(tauri_config.get("bundle", {}).get("targets") == ["nsis"], "Windows bundle must avoid WiX and build the NSIS setup executable")
-    check(tauri_config.get("version") == "1.1.1", "Tauri version must be 1.1.1")
+    check(tauri_config.get("version") == "1.1.2", "Tauri version must be 1.1.2")
+    check(tauri_config.get("identifier") == "com.isekailumberjack.game", "Windows must retain the existing application identifier")
     android_config = json.loads((ROOT / "src-tauri/tauri.android.conf.json").read_text(encoding="utf-8"))
     check(android_config.get("productName") == "이세계나무꾼", "Android launcher name must use the short Korean title")
+    check(android_config.get("identifier") == "com.isekailumberjack.release", "Android must use the new independent application identifier")
     main_rs = (ROOT / "src-tauri/src/main.rs").read_text(encoding="utf-8")
     check('windows_subsystem = "windows"' in main_rs, "release Windows builds must suppress the console window")
     android_patch = (ROOT / "tools/patch_android.py").read_text(encoding="utf-8")
