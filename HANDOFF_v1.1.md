@@ -48,7 +48,9 @@
 
 - Android 표시 이름은 `이세계나무꾼`입니다.
 - Windows는 `src-tauri/icons/icon.png` 원본을 사용하고 Android는 둥근 마스크 안전 여백을 더한 `src-tauri/icons/icon-mobile.png`를 사용합니다.
-- Android v1.1.2 식별자는 `com.isekailumberjack.release`이며 이전 테스트 앱과 별도 설치됩니다. Windows 식별자는 기존 값을 유지합니다.
+- Android v1.1.3 식별자는 `com.isekailumberjack.stable`이며 충돌하던 이전 테스트 앱과 별도 설치됩니다. Windows 식별자는 기존 값을 유지합니다.
+- Android 15에서는 `window.insetsController`를 `onCreate`에서 즉시 읽으면 장식 뷰 생성 전 NPE가 발생합니다. 몰입 화면은 `window.decorView.post` 이후 `decorView.windowInsetsController`로만 적용합니다.
+- Android 자동 QA는 API 35에서 게임 시작을 탭하고 오프닝 3장과 메인 게임 진입까지 검증합니다.
 - `tools/patch_android.py`가 생성된 `MainActivity.kt`에 시스템 상태·내비게이션 바 숨김을 적용합니다.
 - Android 11 이상은 스와이프로 시스템 바를 일시 표시하는 transient-bars 동작을 사용하고 구버전은 immersive-sticky 플래그를 사용합니다.
 - Android 초기화 뒤에는 항상 패치 스크립트를 실행해야 합니다. 로컬 배치 파일과 GitHub Actions에 이 단계를 포함했습니다.
