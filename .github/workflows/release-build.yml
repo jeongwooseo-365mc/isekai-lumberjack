@@ -124,6 +124,7 @@ jobs:
           disable-animations: true
           script: bash tools/android_smoke_test.sh "$X86_APK"
       - name: Upload installable APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: isekai-lumberjack-v1.1.2-android-arm64-apk
@@ -136,9 +137,10 @@ jobs:
             release/android-opening-3.png
             release/android-main.png
             release/android-launch-check.txt
+            release/android-failure-log.txt
             release/android-install.txt
             release/android-window.xml
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
 
   windows:
