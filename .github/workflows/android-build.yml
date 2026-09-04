@@ -131,5 +131,6 @@ jobs:
             release/android-launch.png
             release/android-launch-check.txt
             release/android-install.txt
+            release/android-window.xml
           if-no-files-found: error
           retention-days: 90
