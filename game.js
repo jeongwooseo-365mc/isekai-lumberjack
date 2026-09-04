@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.1.2";
+  const APP_VERSION = "1.1.3";
   const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
   const META_KEY = "isekai_lumberjack_meta";
