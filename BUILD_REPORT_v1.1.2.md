@@ -16,4 +16,27 @@
 
 ## 빌드·검증 결과
 
-실제 GitHub Actions 실행과 Android 에뮬레이터 QA가 끝난 뒤 커밋, 실행 번호, 파일 크기, SHA-256을 기록합니다.
+- 프로젝트 로직·자산·설정 검사: 652개 통과
+- Android 런처 아이콘: 일반·전경 리소스 10개 생성 및 APK 포함 검사 통과
+- Android 앱: ARM64 네이티브 라이브러리, 버전 `1.1.2`, 새 앱 ID, 짧은 이름 확인
+- Android API 29 에뮬레이터: 설치 성공, MainActivity 콜드 스타트 성공, 충돌 로그 없음
+- Android 앱 시작 시간: 408ms
+- 실제 첫 화면: 1080×1920, 경계 비율 0.2357, 양자화 색상 783개로 빈 화면 아님
+- APK ZIP 무결성 검사: 오류 없음
+- Windows: 콘솔 없는 GUI 형식의 NSIS 설치 프로그램 생성 및 ZIP 무결성 검사 통과
+
+## 빌드 이력
+
+- 기준 커밋: `046b79337e866e6e94ea4fc07fa284fe889f4e7d`
+- 통합 Actions 실행: `33840289062`
+- Android 작업: 성공
+- Windows 작업: 성공
+
+## 최종 파일
+
+| 파일 | 크기 | SHA-256 |
+|---|---:|---|
+| `isekai-lumberjack-v1.1.2-android-arm64.apk` | 94,078,414 bytes | `9d33266e71f46955c6fa51a6bbfe8537f40a81fd126028bb311f1a391056b620` |
+| `isekai-lumberjack-v1.1.2-windows-x64-setup.exe` | 83,503,687 bytes | `c4bf146e0650f167dd060eecee7c1a73d6f206c8db94b9cf88c2d23f4c9e1114` |
+| `android-launch.png` | 2,398,997 bytes | `df4e3f18eadf412f04ce6720f6100d8bd71002ec111618fb7913c7e097a33170` |
+| `android-launcher-preview.png` | 243,674 bytes | `17860e6f62fac37198ffa1a395fd76a673532fa1013c6b11902ce082a172609c` |
