@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.1.3","Android 15 crash-fix app version");
+    assert.equal(game.constants.APP_VERSION,"1.1.4","balance update app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -68,12 +68,14 @@ setTimeout(async()=>{
     assert.equal(game.weightedIndex(game.constants.ROD_PROBS[3],.999),5,"hero rod can still catch lobster after weight normalization");
     assert.equal(game.weightedIndex(game.constants.ROD_PROBS[4],.999),5,"divine rod can still catch lobster after weight normalization");
     assert.deepEqual(Array.from(game.constants.RECIPES,r=>({name:r.name,heal:r.heal,cost:{...r.cost}})),[
-      {name:"생선 수프",heal:75,cost:{해초:10,민어:2}},
-      {name:"해산물 스튜",heal:225,cost:{해초:10,조개:10,민어:5}},
-      {name:"구운 생선",heal:150,cost:{숭어:1}},
-      {name:"연어 스테이크",heal:350,cost:{연어:1}},
-      {name:"고급 랍스터 정식",heal:750,cost:{랍스터:1}},
-    ],"recipe healing and materials match v1.1 balance");
+      {name:"생선 수프",heal:75,cost:{해초:100,민어:20}},
+      {name:"해산물 스튜",heal:225,cost:{해초:100,조개:100,민어:50}},
+      {name:"구운 생선",heal:100,cost:{숭어:10}},
+      {name:"연어 스테이크",heal:200,cost:{연어:10}},
+      {name:"고급 랍스터 정식",heal:400,cost:{랍스터:10}},
+    ],"recipe healing and tenfold material costs match v1.1.4 balance");
+    assert.equal(game.constants.MAX_ITEM_COUNT,99999,"all materials use the expanded five-digit cap");
+    assert.equal(game.constants.GEAR_CAPACITY,40,"combined inventory supports forty slots");
     assert.deepEqual({...game.constants.GEAR_COST.axe[4]},{wood2:2000,gold2:2000});
     assert.deepEqual({...game.constants.GEAR_COST.pickaxe[4]},{ore2:2000,gold2:2000});
     assert.deepEqual({...game.constants.GEAR_COST.sword[4]},{wood2:2000,ore2:2000});
@@ -132,18 +134,27 @@ setTimeout(async()=>{
     assert.equal(game.settleOffline(clockNow),5,"absolute clock settles complete elapsed seconds");assert.equal(state.hp,5);assert.equal(state.restProgress,0);assert.equal(state.lastSeen,clockNow-500,"clock keeps the sub-second remainder");
     assert.equal(game.settleOffline(clockNow+500),1,"the retained remainder is reconciled on the next lifecycle tick");assert.equal(state.hp,6);assert.equal(state.restProgress,0);
 
-    state=game.freshState();game.replaceState(state);state.fish["해초"]=10;state.fish["민어"]=2;state.hp=125;
+    state=game.freshState();game.replaceState(state);state.fish["해초"]=100;state.fish["민어"]=20;state.hp=125;
     game.selectRecipe(0);game.cookSelected();assert.equal(state.foods[0],1,"cooking creates one stored food");assert.equal(state.hp,125,"cooking does not immediately heal");assert.equal(state.fish["해초"],0);assert.equal(state.fish["민어"],0);assert(state.logs.at(-1).text.includes("생선 수프 1개를 만들었습니다."));
     state.equippedFood=0;state.place="forest";state.auto=true;state.hp=1;state.target={hp:999999,max:999999,def:0,xp:20};game.workAction(true,1000);
-    assert.equal(state.hp,75,"equipped food automatically restores HP at zero");assert.equal(state.foods[0],0,"automatic eating consumes one food");assert.equal(state.equippedFood,null,"empty food stack clears the equipped slot");assert.equal(state.auto,true,"auto continues after automatic food recovery");
+    assert.equal(state.hp,75,"equipped food automatically restores HP at zero");assert.equal(state.foods[0],0,"automatic eating consumes one food");assert.equal(state.equippedFood,null,"empty food stack clears the equipped slot");assert.equal(state.auto,true,"auto continues after automatic food recovery");assert(!state.unseenFoodIndices.includes(0),"empty food stacks clear their unseen marker");
 
-    state=game.freshState();game.replaceState(state);state.foods[3]=2;state.hp=0;game.selectFood(3);game.equipSelectedFood();assert.equal(state.equippedFood,3);game.renderProfile();assert(element("overlayContent").innerHTML.includes("연어 스테이크 x2"));assert(element("overlayContent").innerHTML.includes("즉시먹기"));game.renderHud();assert.equal((element("equippedGrid").innerHTML.match(/class="equip-slot/g)||[]).length,6,"HUD includes five gear slots and one food slot");assert(element("equippedGrid").innerHTML.includes("x2"));
-    game.eatSelectedFood();assert.equal(state.foods[3],1);assert.equal(state.hp,350,"immediate eating respects maximum HP");
+    state=game.freshState();game.replaceState(state);state.foods[3]=2;state.hp=0;game.selectFood(3);game.equipSelectedFood();assert.equal(state.equippedFood,3);game.renderProfile();assert(element("overlayContent").innerHTML.includes("연어 스테이크 x2"));game.renderHud();assert.equal((element("equippedGrid").innerHTML.match(/class="equip-slot/g)||[]).length,6,"HUD includes five gear slots and one food slot");assert(element("equippedGrid").innerHTML.includes("x2"));
+    assert(element("overlayContent").innerHTML.includes("장착 해제"),"equipped food offers an unequip action");assert(!element("overlayContent").innerHTML.includes("즉시먹기"),"equipped food hides immediate eating");game.unequipSelectedFood();assert.equal(state.equippedFood,null,"food can be unequipped without being consumed");game.renderProfile();assert(element("overlayContent").innerHTML.includes("즉시먹기"));
+    game.eatSelectedFood();assert.equal(state.foods[3],1);assert.equal(state.hp,200,"immediate eating uses the updated recovery amount");
 
-    state=game.freshState();game.replaceState(state);state.res.wood[0]=9998;game.normalizeInventory();state.res.wood[0]+=50;game.normalizeInventory();assert.equal(state.res.wood[0],9999,"resources cap at 9999");
+    state=game.freshState();game.replaceState(state);state.res.wood[0]=99998;game.normalizeInventory();state.res.wood[0]+=50;game.normalizeInventory();assert.equal(state.res.wood[0],99999,"resources cap at 99999");
 
     state=game.freshState();game.replaceState(state);state.res.wood[0]=200;game.craftSelected();game.craftSelected();assert.equal(state.gear.length,6,"craft completion lock blocks double click");assert.equal(state.res.wood[0],100,"double click consumes one recipe only");await new Promise(resolve=>setTimeout(resolve,1100));
-    state=game.freshState();game.replaceState(state);while(state.gear.length<20)state.gear.push({id:`extra_${state.gear.length}`,type:"axe",tier:1,enh:0});const woodBefore=state.res.wood[0];game.craftSelected();assert.equal(state.gear.length,20,"crafting cannot exceed gear capacity");assert.equal(state.res.wood[0],woodBefore,"full storage does not consume crafting materials");
+    assert.equal(state.unseenGearIds.length,1,"newly crafted non-starter gear is marked unseen");game.renderProfile();assert(element("overlayContent").innerHTML.includes("item-card  unseen"),"unseen equipment receives the pale inventory border");game.markGearSeen(state.unseenGearIds[0]);assert.equal(state.unseenGearIds.length,0,"opening the equipment clears its unseen marker");
+    state=game.freshState();game.replaceState(state);while(state.gear.length<40)state.gear.push({id:`extra_${state.gear.length}`,type:"axe",tier:1,enh:0});const woodBefore=state.res.wood[0];game.craftSelected();assert.equal(state.gear.length,40,"crafting cannot exceed combined inventory capacity");assert.equal(state.res.wood[0],woodBefore,"full storage does not consume crafting materials");
+
+    state=game.freshState();game.replaceState(state);while(state.gear.length<12)state.gear.push({id:`gear_${state.gear.length}`,type:"axe",tier:1,enh:0});state.foods[0]=3;state.foods[2]=1;game.normalizeInventory();assert.equal(game.inventoryItemCount(),14,"food kinds and equipment share the displayed slot count");game.renderProfile();assert(element("overlayContent").innerHTML.includes("보유 장비 14/40"));assert(!element("overlayContent").innerHTML.includes("음식 2종"));
+    game.markFoodUnseen(2);game.renderProfile();assert(element("overlayContent").innerHTML.includes("item-card  unseen"),"new food stacks receive the pale inventory border");game.markFoodSeen(2);assert(!state.unseenFoodIndices.includes(2),"opening food clears its unseen marker");
+
+    state=game.freshState();game.replaceState(state);delete state.unseenGearIds;delete state.unseenFoodIndices;game.normalizeInventory();assert.deepEqual(state.unseenGearIds,[],"older v1.1 saves gain an empty unseen-equipment list");assert.deepEqual(state.unseenFoodIndices,[],"older v1.1 saves gain an empty unseen-food list");
+    state=game.freshState();game.replaceState(state);while(state.gear.length<40)state.gear.push({id:`full_${state.gear.length}`,type:"axe",tier:1,enh:0});state.fish["해초"]=100;state.fish["민어"]=20;game.selectRecipe(0);game.cookSelected();assert.equal(state.foods[0],0,"a new food kind cannot exceed the shared forty-slot capacity");assert.equal(state.fish["해초"],100,"blocked cooking preserves ingredients");
+    state.gear.pop();state.foods[0]=1;game.cookSelected();assert.equal(state.foods[0],2,"an existing food stack can grow while all forty shared slots are occupied");assert.equal(game.inventoryItemCount(),40);
 
     state=game.freshState();game.replaceState(state);game.renderProfile();const shabbyCount=state.gear.length;await game.discardSelected();assert.equal(state.gear.length,shabbyCount,"shabby gear cannot be discarded");
 
@@ -154,10 +165,10 @@ setTimeout(async()=>{
     game.renderEstate();assert.equal(element("overlayTitle").textContent,"부동산");
     game.renderCooking();assert(element("overlayContent").innerHTML.includes("요리하기"));assert(!element("overlayContent").innerHTML.includes("만들어 먹기"));
     game.renderEnhance();assert(element("overlayContent").innerHTML.includes("낚싯대"),"rod is enhanceable");
-    game.renderProfile();assert(element("overlayContent").innerHTML.includes("/20"),"profile shows gear capacity");
+    game.renderProfile();assert(element("overlayContent").innerHTML.includes("/40"),"profile shows combined inventory capacity");
     game.setMenuOpen(true);assert(element("mainMenu").classList.contains("open"),"mobile menu expands on demand");assert(element("scene").classList.contains("menu-open"),"target HUD receives menu avoidance state");game.setMenuOpen(false);
     game.renderSettings();assert(!element("overlayContent").innerHTML.includes("지금 저장"),"manual save button is removed");assert(element("overlayContent").innerHTML.includes("자동 저장"));
-    game.replaceMeta({endingSeen:true});state=game.freshState();game.replaceState(state);assert(state.gear.some(g=>g.special),"future games include the permanent Easter egg");game.renderProfile();assert(element("overlayContent").innerHTML.includes("이스터에그 보유"));
+    game.replaceMeta({endingSeen:true});state=game.freshState();game.replaceState(state);assert(state.gear.some(g=>g.special),"future games include the permanent Easter egg");game.renderProfile();assert(element("overlayContent").innerHTML.includes("이스터에그"));
     localStorage.setItem("isekai_lumberjack_save_v11","temporary ending save");const actions=element("endingActions");actions.classList.add("hidden");await game.finalizeEnding(actions);assert.equal(localStorage.getItem("isekai_lumberjack_save_v11"),null,"completed ending deletes ordinary save");assert.equal(JSON.parse(localStorage.getItem("isekai_lumberjack_meta")).endingSeen,true,"ending trophy flag persists separately");assert(!actions.classList.contains("hidden"),"ending actions appear after cleanup");
     console.log("game logic smoke tests: OK");
     process.exit(0);

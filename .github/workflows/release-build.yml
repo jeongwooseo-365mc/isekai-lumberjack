@@ -56,10 +56,28 @@ jobs:
           python3 tools/verify_android_package.py --generated
       - name: Build ARM64 release and x86_64 runtime-test APKs
         run: npx tauri android build --ci --apk --split-per-abi --target aarch64 --target x86_64
-      - name: Sign and verify QA APKs
+      - name: Restore permanent Android signing key
         shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/isekai-lumberjack-release-v1.jks"
+          chmod 600 "$RUNNER_TEMP/isekai-lumberjack-release-v1.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/isekai-lumberjack-release-v1.jks" >> "$GITHUB_ENV"
+      - name: Sign and verify release APKs
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -f "$ANDROID_KEYSTORE_PATH"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
           arm_apk=""
           x86_apk=""
           apk_index=0
@@ -77,15 +95,8 @@ jobs:
           test -x "$build_tools/zipalign"
           test -x "$build_tools/apksigner"
 
-          keytool -genkeypair \
-            -keystore "$RUNNER_TEMP/isekai-lumberjack-test.keystore" \
-            -storepass android \
-            -keypass android \
-            -alias androiddebugkey \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Isekai Lumberjack Test,O=Isekai Lumberjack,C=KR"
+          expected_cert="$(tr -d '[:space:]' < tools/android-signing-cert.sha256 | tr '[:upper:]' '[:lower:]')"
+          test "${#expected_cert}" -eq 64
 
           mkdir -p release
           sign_apk() {
@@ -94,21 +105,23 @@ jobs:
             local output="$3"
             "$build_tools/zipalign" -f -p 4 "$input" "$aligned"
             "$build_tools/apksigner" sign \
-              --ks "$RUNNER_TEMP/isekai-lumberjack-test.keystore" \
-              --ks-key-alias androiddebugkey \
-              --ks-pass pass:android \
-              --key-pass pass:android \
+              --ks "$ANDROID_KEYSTORE_PATH" \
+              --ks-key-alias "$ANDROID_KEY_ALIAS" \
+              --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+              --key-pass "pass:$ANDROID_KEY_PASSWORD" \
               --out "$output" \
               "$aligned"
             "$build_tools/apksigner" verify --verbose --print-certs "$output"
+            actual_cert="$("$build_tools/apksigner" verify --print-certs "$output" | awk -F': ' '/certificate SHA-256 digest/{print tolower($2); exit}')"
+            test "$actual_cert" = "$expected_cert"
           }
 
-          sign_apk "$arm_apk" "$RUNNER_TEMP/isekai-lumberjack-arm64-aligned.apk" "release/isekai-lumberjack-v1.1.3-android-arm64.apk"
-          sign_apk "$x86_apk" "$RUNNER_TEMP/isekai-lumberjack-x86_64-aligned.apk" "$RUNNER_TEMP/isekai-lumberjack-v1.1.3-android-x86_64.apk"
-          echo "X86_APK=$RUNNER_TEMP/isekai-lumberjack-v1.1.3-android-x86_64.apk" >> "$GITHUB_ENV"
+          sign_apk "$arm_apk" "$RUNNER_TEMP/isekai-lumberjack-arm64-aligned.apk" "release/isekai-lumberjack-v1.1.4-android-arm64.apk"
+          sign_apk "$x86_apk" "$RUNNER_TEMP/isekai-lumberjack-x86_64-aligned.apk" "$RUNNER_TEMP/isekai-lumberjack-v1.1.4-android-x86_64.apk"
+          echo "X86_APK=$RUNNER_TEMP/isekai-lumberjack-v1.1.4-android-x86_64.apk" >> "$GITHUB_ENV"
 
-          python3 tools/verify_android_package.py --apk "release/isekai-lumberjack-v1.1.3-android-arm64.apk" --abi arm64-v8a
-          python3 tools/verify_android_package.py --apk "$RUNNER_TEMP/isekai-lumberjack-v1.1.3-android-x86_64.apk" --abi x86_64
+          python3 tools/verify_android_package.py --apk "release/isekai-lumberjack-v1.1.4-android-arm64.apk" --abi arm64-v8a
+          python3 tools/verify_android_package.py --apk "$RUNNER_TEMP/isekai-lumberjack-v1.1.4-android-x86_64.apk" --abi x86_64
       - name: Enable KVM for launch smoke test
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -129,9 +142,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: isekai-lumberjack-v1.1.3-android-arm64-apk
+          name: isekai-lumberjack-v1.1.4-android-arm64-apk
           path: |
-            release/isekai-lumberjack-v1.1.3-android-arm64.apk
+            release/isekai-lumberjack-v1.1.4-android-arm64.apk
             release/android-launch.png
             release/android-intro.png
             release/android-opening-1.png
@@ -170,4 +183,4 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         with:
           uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: isekai-lumberjack-v1.1.3-windows-[bundle]
+          workflowArtifactNamePattern: isekai-lumberjack-v1.1.4-windows-[bundle]

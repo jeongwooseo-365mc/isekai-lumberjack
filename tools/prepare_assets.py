@@ -30,6 +30,46 @@ def normalize(image: Image.Image, size=256, occupancy=0.82, y_bias=0):
     return out
 
 
+def remove_detached_bleed(image: Image.Image, threshold=8):
+    """Keep the main connected artwork and recenter it without rescaling."""
+    rgba = image.convert("RGBA")
+    alpha = rgba.getchannel("A")
+    width, height = rgba.size
+    pixels = alpha.load()
+    seen = set()
+    components = []
+    for y in range(height):
+        for x in range(width):
+            if pixels[x, y] <= threshold or (x, y) in seen:
+                continue
+            component = []
+            stack = [(x, y)]
+            seen.add((x, y))
+            while stack:
+                point = stack.pop()
+                component.append(point)
+                px, py = point
+                for ny in range(max(0, py - 1), min(height, py + 2)):
+                    for nx in range(max(0, px - 1), min(width, px + 2)):
+                        if pixels[nx, ny] > threshold and (nx, ny) not in seen:
+                            seen.add((nx, ny))
+                            stack.append((nx, ny))
+            components.append(component)
+    if not components:
+        return Image.new("RGBA", rgba.size)
+    primary = max(components, key=len)
+    cleaned = Image.new("RGBA", rgba.size)
+    source_pixels = rgba.load()
+    clean_pixels = cleaned.load()
+    for x, y in primary:
+        clean_pixels[x, y] = source_pixels[x, y]
+    bbox = cleaned.getchannel("A").getbbox()
+    obj = cleaned.crop(bbox)
+    centered = Image.new("RGBA", rgba.size)
+    centered.alpha_composite(obj, ((width - obj.width) // 2, (height - obj.height) // 2))
+    return centered
+
+
 def grid_cells(path, cols, rows, indices=None):
     sheet = Image.open(path).convert("RGBA")
     result = []
@@ -141,6 +181,15 @@ def main():
         )],
         occupancy=0.72,
     )
+
+    for relative in (
+        "assets/ui/enhance.png",
+        "assets/ui/settings.png",
+        "assets/resources/croaker.png",
+        "assets/resources/shell.png",
+    ):
+        path = ROOT / relative
+        remove_detached_bleed(Image.open(path)).save(path, optimize=True)
 
     normalize_existing("assets/items/armor_*.png", 256, 0.80)
     normalize_existing("assets/resources/stone_*.png", 256, 0.76)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.1.3."""
+"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.1.4."""
 
 from __future__ import annotations
 
@@ -188,7 +188,19 @@ def main() -> int:
     check("width: 100vw; max-width: 560px; width: min(100vw, 560px); height: 100vh; height: 100dvh" in css, "game shell must retain width and height fallbacks for older Android WebViews")
     check("top: 0; right: 0; bottom: 0; left: 0; inset: 0" in css, "full-screen layers must retain pre-inset Android WebView positioning")
     check("-webkit-overflow-scrolling: touch" in css and "overflow-y: auto" in css, "scrollable panels must retain touch scrolling")
-    check('const APP_VERSION = "1.1.3"' in game_js and 'const SAVE_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.1.3 must preserve the v1.1 save schema")
+    check('const APP_VERSION = "1.1.4"' in game_js and 'const SAVE_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.1.4 must preserve the v1.1 save schema")
+    check("const MAX_ITEM_COUNT = 99999" in game_js and "const GEAR_CAPACITY = 40" in game_js, "material and combined inventory limits must match v1.1.4")
+    check('{ name: "생선 수프", icon: "fish_soup", heal: 75, cost: {해초:100,민어:20} }' in game_js, "fish soup balance is incorrect")
+    check('{ name: "해산물 스튜", icon: "seafood_stew", heal: 225, cost: {해초:100,조개:100,민어:50} }' in game_js, "seafood stew balance is incorrect")
+    check('{ name: "구운 생선", icon: "grilled_fish", heal: 100, cost: {숭어:10} }' in game_js, "grilled fish balance is incorrect")
+    check('{ name: "연어 스테이크", icon: "salmon_steak", heal: 200, cost: {연어:10} }' in game_js, "salmon steak balance is incorrect")
+    check('{ name: "고급 랍스터 정식", icon: "lobster_course", heal: 400, cost: {랍스터:10} }' in game_js, "lobster course balance is incorrect")
+    check('data-do="${isEquipped?"unequip-food":"eat-food"}' in game_js and 'isEquipped?"장착 해제":"즉시먹기"' in game_js, "equipped food must show an unequip action instead of immediate eating")
+    check("S.gear.length+inventoryFoodKindCount()" in game_js and "보유 장비 ${inventoryItemCount()}/${GEAR_CAPACITY}" in game_js, "profile inventory count must combine equipment and food kinds")
+    check("markGearUnseen(gear.id)" in game_js and "g.enh++;markGearUnseen(g.id)" in game_js and "markFoodUnseen(selectedRecipe)" in game_js, "new and enhanced inventory entries must receive the unseen marker")
+    check(".item-card.unseen" in css, "unseen inventory entries must have a pale highlight")
+    check('img[src$="/enhance.png"], img[src$="/settings.png"] { clip-path: inset(18%); }' in css, "menu icon bleed mask is missing")
+    check('img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }' in css, "fishing resource bleed mask is missing")
     check("[[80,19,1,0,0,0],[70,20,8,1.6,.3,.1],[60,25,10,3.4,1.2,.4],[50,20,20,11,3,1],[30,15,25,16,11,4]]" in game_js, "rod fishing weights must match the v1.1 table")
     check("return roll<.03?1:roll<.10?2:null" in game_js, "high areas must drop 3% mid and 7% high stones without low stones")
     check("return roll<(20/55)?2:1" in game_js, "high normal rewards must be limited to mid and high grades")
@@ -217,6 +229,8 @@ def main() -> int:
         "tools/patch_android.py",
         "tools/verify_android_package.py",
         "tools/android_smoke_test.sh",
+        "tools/android-signing-cert.sha256",
+        "SIGNING.md",
         ".github/workflows/release-build.yml",
     ):
         check((ROOT / relative).is_file(), f"missing project file: {relative}")
@@ -227,6 +241,13 @@ def main() -> int:
     check("--split-per-abi --target aarch64 --target x86_64" in release_workflow, "Android job must build ARM64 release and x86_64 runtime-test APKs")
     check("targets: aarch64-linux-android,x86_64-linux-android" in release_workflow, "Android job must install ARM64 and x86_64 Rust targets")
     check("apksigner\" verify --verbose --print-certs" in release_workflow and "actions/upload-artifact@v4" in release_workflow, "Android job must sign, verify, and publish the APK")
+    check("keytool -genkeypair" not in release_workflow, "release workflow must never generate a temporary Android signing key")
+    for secret in ("ANDROID_KEYSTORE_BASE64", "ANDROID_KEYSTORE_PASSWORD", "ANDROID_KEY_ALIAS", "ANDROID_KEY_PASSWORD"):
+        check(f"secrets.{secret}" in release_workflow, f"release workflow is missing permanent signing secret: {secret}")
+    expected_cert = "ffd6b71467cdcdcf93857fa28448b014f4124099e093f648fb5e6009e6088455"
+    check((ROOT / "tools/android-signing-cert.sha256").read_text(encoding="utf-8").strip() == expected_cert, "Android signing certificate fingerprint changed")
+    check("actual_cert" in release_workflow and "expected_cert" in release_workflow, "Android release workflow must verify its signing certificate fingerprint")
+    check("v1.1.4-android-arm64.apk" in release_workflow and "v1.1.4-windows-[bundle]" in release_workflow, "release artifact names must use v1.1.4")
     check("python3 tools/patch_android.py --check" in release_workflow, "Android job must verify immersive mode and the short app label")
     check(release_workflow.index("npx tauri android init --ci") < release_workflow.index("tauri icon src-tauri/icons/icon-mobile.png"), "Android safe-area icons must be generated after android init")
     check("python3 tools/verify_android_package.py --generated" in release_workflow, "Android job must verify the generated axe icons")
@@ -240,7 +261,7 @@ def main() -> int:
     check("com.google.android.apps.nexuslauncher" in android_smoke and "emulator system ANR dialog" in android_smoke, "Android smoke test must prevent launcher ANRs from covering the game")
     tauri_config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     check(tauri_config.get("bundle", {}).get("targets") == ["nsis"], "Windows bundle must avoid WiX and build the NSIS setup executable")
-    check(tauri_config.get("version") == "1.1.3", "Tauri version must be 1.1.3")
+    check(tauri_config.get("version") == "1.1.4", "Tauri version must be 1.1.4")
     check(tauri_config.get("identifier") == "com.isekailumberjack.game", "Windows must retain the existing application identifier")
     android_config = json.loads((ROOT / "src-tauri/tauri.android.conf.json").read_text(encoding="utf-8"))
     check(android_config.get("productName") == "이세계나무꾼", "Android launcher name must use the short Korean title")

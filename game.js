@@ -1,12 +1,12 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.1.3";
+  const APP_VERSION = "1.1.4";
   const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
   const META_KEY = "isekai_lumberjack_meta";
-  const MAX_ITEM_COUNT = 9999;
-  const GEAR_CAPACITY = 20;
+  const MAX_ITEM_COUNT = 99999;
+  const GEAR_CAPACITY = 40;
   const BOSS_PRELUDE_MS = 2000;
   const OPENING_SCENE_MS = 5000;
   const OPENING_BLACK_MS = 3000;
@@ -49,11 +49,11 @@
   ];
 
   const RECIPES = [
-    { name: "생선 수프", icon: "fish_soup", heal: 75, cost: {해초:10,민어:2} },
-    { name: "해산물 스튜", icon: "seafood_stew", heal: 225, cost: {해초:10,조개:10,민어:5} },
-    { name: "구운 생선", icon: "grilled_fish", heal: 150, cost: {숭어:1} },
-    { name: "연어 스테이크", icon: "salmon_steak", heal: 350, cost: {연어:1} },
-    { name: "고급 랍스터 정식", icon: "lobster_course", heal: 750, cost: {랍스터:1} },
+    { name: "생선 수프", icon: "fish_soup", heal: 75, cost: {해초:100,민어:20} },
+    { name: "해산물 스튜", icon: "seafood_stew", heal: 225, cost: {해초:100,조개:100,민어:50} },
+    { name: "구운 생선", icon: "grilled_fish", heal: 100, cost: {숭어:10} },
+    { name: "연어 스테이크", icon: "salmon_steak", heal: 200, cost: {연어:10} },
+    { name: "고급 랍스터 정식", icon: "lobster_course", heal: 400, cost: {랍스터:10} },
   ];
 
   const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"dungeon", map:"map", ending:"ending" };
@@ -113,7 +113,7 @@
       version: SAVE_VERSION, lv:1, xp:0, hp:500, place:"home", grade:0, auto:false, resting:false,
       rngSeed: (Date.now() >>> 0) || 1, res:{wood:[0,0,0],ore:[0,0,0],gold:[0,0,0]},
       fish:Object.fromEntries(FISH.map(x=>[x,0])), stones:[0,0,0], houses:[true,false,false,false,false], house:0,
-      gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foods:Array(RECIPES.length).fill(0), equippedFood:null, logs:[], target:null, fishState:null,
+      gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foods:Array(RECIPES.length).fill(0), equippedFood:null, unseenGearIds:[], unseenFoodIndices:[], logs:[], target:null, fishState:null,
       restProgress:0, restElapsed:0, openingSeen:false, worldGateUnlocked:false, ended:false, lastSeen:Date.now(), lastVisit:Date.now(), settings:{bgm:.5,sfx:.5},
     };
   }
@@ -206,6 +206,8 @@
   function gearIcon(g) { return g?.special?"assets/items/easter_egg.png":`assets/items/${g.type}_${g.tier}.png`; }
   function gearDisplayName(g) { return g?.special?"이스터에그":`${TIERS[g.tier]} ${GEAR_LABEL[g.type]}${g.enh?` +${g.enh}`:""}`; }
   function inventoryGearCount() { return S.gear.filter(g=>!g.special).length; }
+  function inventoryFoodKindCount() { return RECIPES.filter((_,index)=>foodCount(index)>0).length; }
+  function inventoryItemCount() { return S.gear.length+inventoryFoodKindCount(); }
   function foodCount(index) { return capped(S.foods?.[index]); }
   function foodIcon(index) { return `assets/foods/${RECIPES[index].icon}.png`; }
   function resourceIcon(kind, grade) { return `assets/resources/${kind}_${["low","mid","high"][grade]}.png`; }
@@ -237,7 +239,21 @@
     for(const name of FISH) S.fish[name]=capped(S.fish[name]);
     S.foods=Array.from({length:RECIPES.length},(_,index)=>capped(S.foods?.[index]));
     if(!Number.isInteger(S.equippedFood)||foodCount(S.equippedFood)<=0)S.equippedFood=null;
+    const gearIds=new Set(S.gear.map(item=>item.id));
+    S.unseenGearIds=Array.from(new Set(Array.isArray(S.unseenGearIds)?S.unseenGearIds:[])).filter(id=>gearIds.has(id));
+    S.unseenFoodIndices=Array.from(new Set(Array.isArray(S.unseenFoodIndices)?S.unseenFoodIndices:[])).filter(index=>Number.isInteger(index)&&foodCount(index)>0);
   }
+
+  function markGearUnseen(id) {
+    if(!id||String(id).startsWith("starter_")||S.unseenGearIds.includes(id))return;
+    S.unseenGearIds.push(id);
+  }
+  function markFoodUnseen(index) {
+    if(!Number.isInteger(index)||S.unseenFoodIndices.includes(index))return;
+    S.unseenFoodIndices.push(index);
+  }
+  function markGearSeen(id) { S.unseenGearIds=S.unseenGearIds.filter(value=>value!==id); }
+  function markFoodSeen(index) { S.unseenFoodIndices=S.unseenFoodIndices.filter(value=>value!==index); }
 
   function addLog(text, icon="assets/ui/logo_mark.png", tone="", at=Date.now()) {
     S.logs.push({ text, icon, tone, at });
@@ -293,7 +309,7 @@
     S.hp=Math.min(maxHp(),S.hp+recipe.heal);
     const gained=Math.max(0,Math.floor(S.hp-before));
     addLog(`${recipe.name} ${automatic?"자동 섭취":"섭취"}: 체력 ${gained.toLocaleString()} 회복.`,foodIcon(index),"good",at);
-    if(S.foods[index]===0){if(S.equippedFood===index)S.equippedFood=null;if(selectedFoodIndex===index)selectedFoodIndex=null;}
+    if(S.foods[index]===0){if(S.equippedFood===index)S.equippedFood=null;if(selectedFoodIndex===index)selectedFoodIndex=null;markFoodSeen(index);}
     if(!simulated){playSfx("eat");setTimeout(()=>playSfx("heal"),180);}
     return true;
   }
@@ -723,10 +739,10 @@
   function craftSelected() {
     if(crafting)return;
     const {type,tier}=selectedWorkshop, cost=GEAR_COST[type][tier];
-    if(inventoryGearCount()>=GEAR_CAPACITY){toast("보관함이 가득 찼습니다. 장비를 버린 뒤 제작해 주세요.");playSfx("ui_error");return;}
+    if(inventoryItemCount()>=GEAR_CAPACITY){toast("보관함이 가득 찼습니다. 장비를 버리거나 음식을 사용해 주세요.");playSfx("ui_error");return;}
     if(tier===0||!pay(cost)){playSfx("ui_error");return;}
     crafting=true;
-    const gear={id:newId(type),type,tier,enh:0};S.gear.push(gear);refreshWorldGateUnlock(true);addLog(`${TIERS[tier]} ${GEAR_LABEL[type]} 제작 완료.`,gearIcon(gear),"good");playSfx("purchase");toast("제작 완료!",1500);renderWorkshop();renderHud();persist();
+    const gear={id:newId(type),type,tier,enh:0};S.gear.push(gear);markGearUnseen(gear.id);refreshWorldGateUnlock(true);addLog(`${TIERS[tier]} ${GEAR_LABEL[type]} 제작 완료.`,gearIcon(gear),"good");playSfx("purchase");toast("제작 완료!",1500);renderWorkshop();renderHud();persist();
     setTimeout(()=>{crafting=false;if(dom.overlay.classList.contains("open"))renderWorkshop();},1000);
   }
 
@@ -749,14 +765,16 @@
   function fishPay(cost){if(!canFishPay(cost))return false;for(const[n,v]of Object.entries(cost))S.fish[n]-=v;return true;}
 
   function renderCooking() {
-    const recipe=RECIPES[selectedRecipe];setOverlayHeader("요리","낚시 재료로 회복 음식을 요리합니다");
-    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="assets/foods/${recipe.icon}.png" alt=""></div><div class="detail-copy"><h3>${recipe.name}</h3><p class="value">체력 +${recipe.heal.toLocaleString()}</p><p>보유 ${foodCount(selectedRecipe).toLocaleString()}개 · 마이페이지에서 장착 또는 섭취</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${fishRequirementHtml(recipe.cost)}<button class="primary-button wide-action" data-do="cook" ${!canFishPay(recipe.cost)||foodCount(selectedRecipe)>=MAX_ITEM_COUNT?"disabled":""}>요리하기</button></div></div><div class="section-title">요리 목록</div><div class="item-list">${RECIPES.map((r,i)=>`<button class="item-card ${i===selectedRecipe?"selected":""}" data-do="recipe-select" data-recipe="${i}"><img src="assets/foods/${r.icon}.png" alt=""><span><b>${r.name}</b><small>체력 +${r.heal.toLocaleString()} · 보유 x${foodCount(i).toLocaleString()}</small></span></button>`).join("")}</div><div class="section-title">보유 낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
+    const recipe=RECIPES[selectedRecipe],needsSlot=foodCount(selectedRecipe)<=0,storageFull=needsSlot&&inventoryItemCount()>=GEAR_CAPACITY;setOverlayHeader("요리","낚시 재료로 회복 음식을 요리합니다");
+    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="assets/foods/${recipe.icon}.png" alt=""></div><div class="detail-copy"><h3>${recipe.name}</h3><p class="value">체력 +${recipe.heal.toLocaleString()}</p><p>보유 ${foodCount(selectedRecipe).toLocaleString()}개 · 마이페이지에서 장착 또는 섭취</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${fishRequirementHtml(recipe.cost)}<button class="primary-button wide-action" data-do="cook" ${!canFishPay(recipe.cost)||foodCount(selectedRecipe)>=MAX_ITEM_COUNT||storageFull?"disabled":""}>요리하기</button></div></div><div class="section-title">요리 목록</div><div class="item-list">${RECIPES.map((r,i)=>`<button class="item-card ${i===selectedRecipe?"selected":""}" data-do="recipe-select" data-recipe="${i}"><img src="assets/foods/${r.icon}.png" alt=""><span><b>${r.name}</b><small>체력 +${r.heal.toLocaleString()} · 보유 x${foodCount(i).toLocaleString()}</small></span></button>`).join("")}</div><div class="section-title">보유 낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
   }
 
   function cookSelected() {
     const r=RECIPES[selectedRecipe];
+    if(foodCount(selectedRecipe)<=0&&inventoryItemCount()>=GEAR_CAPACITY){toast("보관함이 가득 찼습니다. 장비를 버리거나 음식을 사용해 주세요.");playSfx("ui_error");return;}
     if(foodCount(selectedRecipe)>=MAX_ITEM_COUNT||!fishPay(r.cost)){playSfx("ui_error");return;}
     S.foods[selectedRecipe]=capped(foodCount(selectedRecipe)+1);
+    markFoodUnseen(selectedRecipe);
     const message=`${r.name} 1개를 만들었습니다.`;
     addLog(message,foodIcon(selectedRecipe),"good");playSfx("cook");toast(message);renderCooking();renderHud();persist();
   }
@@ -782,9 +800,9 @@
     for(const[k,v]of Object.entries(req))S.stones[k]-=v;enhancing=true;playSfx("enhance_start");renderEnhance();toast("강화 중입니다…",3900);persist();
     setTimeout(()=>{
       const success=rand()*100<enhChance(g);enhancing=false;
-      if(success){g.enh++;addLog(`${TIERS[g.tier]} ${GEAR_LABEL[g.type]} +${g.enh} 강화 성공!`,gearIcon(g),"good");playSfx("enhance_success");toast(`강화 성공! +${g.enh}`);}
+      if(success){g.enh++;markGearUnseen(g.id);addLog(`${TIERS[g.tier]} ${GEAR_LABEL[g.type]} +${g.enh} 강화 성공!`,gearIcon(g),"good");playSfx("enhance_success");toast(`강화 성공! +${g.enh}`);}
       else if(g.tier===0){addLog(`허름한 ${GEAR_LABEL[g.type]} 강화 실패. 장비는 보존되었습니다.`,gearIcon(g),"warn");playSfx("enhance_fail");toast("강화 실패 · 장비 보존");}
-      else {const label=`${TIERS[g.tier]} ${GEAR_LABEL[g.type]}${g.enh?` +${g.enh}`:""}`;S.gear=S.gear.filter(x=>x.id!==g.id);if(S.equipped[g.type]===g.id){const replacement=S.gear.filter(x=>x.type===g.type).sort((a,b)=>gearPower(b)-gearPower(a))[0];S.equipped[g.type]=replacement?.id||null;if(g.type==="armor")S.hp=Math.min(S.hp,maxHp());}selectedEnhanceId=null;addLog(`${label} 강화 실패. 장비가 파괴되었습니다.`,gearIcon(g),"warn");playSfx("gear_break");toast("강화 실패 · 장비 파괴");}
+      else {const label=`${TIERS[g.tier]} ${GEAR_LABEL[g.type]}${g.enh?` +${g.enh}`:""}`;S.gear=S.gear.filter(x=>x.id!==g.id);markGearSeen(g.id);if(S.equipped[g.type]===g.id){const replacement=S.gear.filter(x=>x.type===g.type).sort((a,b)=>gearPower(b)-gearPower(a))[0];S.equipped[g.type]=replacement?.id||null;if(g.type==="armor")S.hp=Math.min(S.hp,maxHp());}selectedEnhanceId=null;addLog(`${label} 강화 실패. 장비가 파괴되었습니다.`,gearIcon(g),"warn");playSfx("gear_break");toast("강화 실패 · 장비 파괴");}
       renderEnhance();render();persist();
     },4000);
   }
@@ -797,15 +815,15 @@
     let detail="";
     if(foodSelected) {
       const recipe=RECIPES[selectedFoodIndex],isEquipped=S.equippedFood===selectedFoodIndex;
-      detail=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${foodIcon(selectedFoodIndex)}" alt=""></div><div class="detail-copy"><h3>${recipe.name} x${foodCount(selectedFoodIndex).toLocaleString()}</h3><p class="value">체력 +${recipe.heal.toLocaleString()}</p><p>${isEquipped?"현재 장착 중 · 체력 0에서 자동 섭취":"보유 중"}</p></div></div><div class="requirements profile-actions"><button class="primary-button" data-do="equip-food" ${isEquipped?"disabled":""}>${isEquipped?"장착 중":"장착하기"}</button><button class="secondary-button" data-do="eat-food" ${S.hp>=maxHp()?"disabled":""}>즉시먹기</button></div></div>`;
+      detail=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${foodIcon(selectedFoodIndex)}" alt=""></div><div class="detail-copy"><h3>${recipe.name} x${foodCount(selectedFoodIndex).toLocaleString()}</h3><p class="value">체력 +${recipe.heal.toLocaleString()}</p><p>${isEquipped?"현재 장착 중 · 체력 0에서 자동 섭취":"보유 중"}</p></div></div><div class="requirements profile-actions"><button class="primary-button" data-do="equip-food" ${isEquipped?"disabled":""}>${isEquipped?"장착 중":"장착하기"}</button><button class="secondary-button" data-do="${isEquipped?"unequip-food":"eat-food"}" ${!isEquipped&&S.hp>=maxHp()?"disabled":""}>${isEquipped?"장착 해제":"즉시먹기"}</button></div></div>`;
     } else if(g) {
       const isEquipped=!g.special&&S.equipped[g.type]===g.id;
       const equipDisabled=g.special||isEquipped,discardDisabled=g.special||g.tier===0||isEquipped;
       detail=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.special?"엔딩 완료 영구 징표":isEquipped?"현재 장착 중":"보유 중"}</p></div></div><div class="requirements profile-actions"><button class="primary-button" data-do="equip" ${equipDisabled?"disabled":""}>${g.special?"장착 불가":isEquipped?"장착 중":"장착하기"}</button><button class="danger-button" data-do="discard" ${discardDisabled?"disabled":""}>${g.special||g.tier===0?"버리기 불가":"버리기"}</button></div></div>`;
     }
-    const foodCards=RECIPES.map((recipe,index)=>foodCount(index)>0?`<button class="item-card ${foodSelected&&index===selectedFoodIndex?"selected":""}" data-do="food-select" data-food="${index}"><img src="${foodIcon(index)}" alt=""><span><b>${recipe.name} <em class="food-stack">x${foodCount(index).toLocaleString()}</em></b><small>${S.equippedFood===index?"장착 중":"보유"}</small></span></button>`:"").join("");
-    const foodKinds=RECIPES.filter((_,index)=>foodCount(index)>0).length;
-    dom.overlayContent.innerHTML=`${detail}<div class="section-title">보유 장비 ${inventoryGearCount()}/${GEAR_CAPACITY}${foodKinds?` · 음식 ${foodKinds}종`:""}${S.gear.some(item=>item.special)?" · 이스터에그 보유":""}</div><div class="gear-inventory-box"><div class="item-list">${S.gear.map(item=>`<button class="item-card ${!foodSelected&&item.id===g?.id?"selected":""}" data-do="gear-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${item.special?"영구 징표":S.equipped[item.type]===item.id?"장착 중":"보유"}</small></span></button>`).join("")}${foodCards}</div></div><div class="section-title">보유 재화</div>${walletHtml()}<div class="section-title">낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
+    const foodCards=RECIPES.map((recipe,index)=>foodCount(index)>0?`<button class="item-card ${foodSelected&&index===selectedFoodIndex?"selected":""} ${S.unseenFoodIndices.includes(index)?"unseen":""}" data-do="food-select" data-food="${index}"><img src="${foodIcon(index)}" alt=""><span><b>${recipe.name} <em class="food-stack">x${foodCount(index).toLocaleString()}</em></b><small>${S.equippedFood===index?"장착 중":"보유"}</small></span></button>`:"").join("");
+    const gearCards=S.gear.map(item=>`<button class="item-card ${!foodSelected&&item.id===g?.id?"selected":""} ${S.unseenGearIds.includes(item.id)?"unseen":""}" data-do="gear-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${item.special?"영구 징표":S.equipped[item.type]===item.id?"장착 중":"보유"}</small></span></button>`).join("");
+    dom.overlayContent.innerHTML=`${detail}<div class="section-title">보유 장비 ${inventoryItemCount()}/${GEAR_CAPACITY}</div><div class="gear-inventory-box"><div class="item-list">${gearCards}${foodCards}</div></div><div class="section-title">보유 재화</div>${walletHtml()}<div class="section-title">낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
   }
 
   function equipSelected() {
@@ -816,6 +834,13 @@
     if(!Number.isInteger(selectedFoodIndex)||foodCount(selectedFoodIndex)<=0)return;
     S.equippedFood=selectedFoodIndex;
     addLog(`${RECIPES[selectedFoodIndex].name} 장착. 체력 0에서 자동으로 먹습니다.`,foodIcon(selectedFoodIndex),"good");
+    playSfx("equip");renderProfile();render();persist();
+  }
+
+  function unequipSelectedFood() {
+    if(!Number.isInteger(selectedFoodIndex)||S.equippedFood!==selectedFoodIndex)return;
+    const index=selectedFoodIndex;S.equippedFood=null;
+    addLog(`${RECIPES[index].name} 장착 해제.`,foodIcon(index));
     playSfx("equip");renderProfile();render();persist();
   }
 
@@ -833,7 +858,7 @@
     const label=gearDisplayName(g);
     const yes=await showConfirm("장비 버리기",`${label} 장비를 버리시겠습니까?\n버린 장비는 복구할 수 없습니다.`,"버리기");
     if(!yes)return;
-    S.gear=S.gear.filter(item=>item.id!==g.id);selectedGearId=S.gear[0]?.id||null;addLog(`${label} 장비를 버렸습니다.`,gearIcon(g),"warn");playSfx("ui_confirm");renderProfile();render();persist();
+    S.gear=S.gear.filter(item=>item.id!==g.id);markGearSeen(g.id);selectedGearId=S.gear[0]?.id||null;addLog(`${label} 장비를 버렸습니다.`,gearIcon(g),"warn");playSfx("ui_confirm");renderProfile();render();persist();
   }
 
   function renderSettings() {
@@ -951,10 +976,11 @@
     else if(action==="cook")cookSelected();
     else if(action==="enhance-select"){selectedEnhanceId=el.dataset.id;renderEnhance();}
     else if(action==="enhance-now")enhanceNow();
-    else if(action==="gear-select"){selectedGearId=el.dataset.id;selectedFoodIndex=null;renderProfile();}
-    else if(action==="food-select"){selectedFoodIndex=+el.dataset.food;selectedGearId=null;renderProfile();}
+    else if(action==="gear-select"){selectedGearId=el.dataset.id;selectedFoodIndex=null;markGearSeen(selectedGearId);renderProfile();persist();}
+    else if(action==="food-select"){selectedFoodIndex=+el.dataset.food;selectedGearId=null;markFoodSeen(selectedFoodIndex);renderProfile();persist();}
     else if(action==="equip")equipSelected();
     else if(action==="equip-food")equipSelectedFood();
+    else if(action==="unequip-food")unequipSelectedFood();
     else if(action==="eat-food")eatSelectedFood();
     else if(action==="discard")discardSelected();
     else if(action==="quit")quitGame();
@@ -1019,6 +1045,13 @@
       refreshWorldGateUnlock,
       hasAllDivineGear,
       normalizeInventory,
+      inventoryGearCount,
+      inventoryFoodKindCount,
+      inventoryItemCount,
+      markGearUnseen,
+      markFoodUnseen,
+      markGearSeen,
+      markFoodSeen,
       foodCount,
       consumeFood,
       handleExhaustion,
@@ -1045,6 +1078,7 @@
       craftSelected,
       cookSelected,
       equipSelectedFood,
+      unequipSelectedFood,
       eatSelectedFood,
       selectRecipe:(index)=>{selectedRecipe=Math.max(0,Math.min(RECIPES.length-1,Number(index)||0));},
       selectFood:(index)=>{selectedFoodIndex=Number(index);selectedGearId=null;},
