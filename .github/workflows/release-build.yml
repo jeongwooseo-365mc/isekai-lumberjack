@@ -112,7 +112,7 @@ jobs:
               --out "$output" \
               "$aligned"
             "$build_tools/apksigner" verify --verbose --print-certs "$output"
-            actual_cert="$("$build_tools/apksigner" verify --print-certs "$output" | awk -F': ' '/certificate SHA-256 digest/{print tolower($2); exit}')"
+            actual_cert="$("$build_tools/apksigner" verify --print-certs "$output" | awk -F': ' '/certificate SHA-256 digest/{print tolower($NF); exit}')"
             test "$actual_cert" = "$expected_cert"
           }
 
