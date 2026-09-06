@@ -244,7 +244,7 @@ def main() -> int:
     check("keytool -genkeypair" not in release_workflow, "release workflow must never generate a temporary Android signing key")
     for secret in ("ANDROID_KEYSTORE_BASE64", "ANDROID_KEYSTORE_PASSWORD", "ANDROID_KEY_ALIAS", "ANDROID_KEY_PASSWORD"):
         check(f"secrets.{secret}" in release_workflow, f"release workflow is missing permanent signing secret: {secret}")
-    expected_cert = "ffd6b71467cdcdcf93857fa28448b014f4124099e093f648fb5e6009e6088455"
+    expected_cert = "f477923fc8ac5d9180c24ae8541680d9910894ac7463e4126fd7cb1d18c33a7d"
     check((ROOT / "tools/android-signing-cert.sha256").read_text(encoding="utf-8").strip() == expected_cert, "Android signing certificate fingerprint changed")
     check("actual_cert" in release_workflow and "expected_cert" in release_workflow, "Android release workflow must verify its signing certificate fingerprint")
     check("v1.1.4-android-arm64.apk" in release_workflow and "v1.1.4-windows-[bundle]" in release_workflow, "release artifact names must use v1.1.4")

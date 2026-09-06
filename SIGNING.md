@@ -2,7 +2,7 @@
 
 - Android 앱 ID: `com.isekailumberjack.stable`
 - 릴리스 키 별칭: `isekai_lumberjack_release`
-- 인증서 SHA-256: `ffd6b71467cdcdcf93857fa28448b014f4124099e093f648fb5e6009e6088455`
+- 인증서 SHA-256: `f477923fc8ac5d9180c24ae8541680d9910894ac7463e4126fd7cb1d18c33a7d`
 - 최초 안정 서명 버전: `1.1.4`
 - 인증서 유효 기간: 2026-09-06 ~ 2126-08-13
 
