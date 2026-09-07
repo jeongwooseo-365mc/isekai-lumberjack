@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.1.4","balance update app version");
+    assert.equal(game.constants.APP_VERSION,"1.2.0","secret exchange and intro update app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -76,6 +76,8 @@ setTimeout(async()=>{
     ],"recipe healing and tenfold material costs match v1.1.4 balance");
     assert.equal(game.constants.MAX_ITEM_COUNT,99999,"all materials use the expanded five-digit cap");
     assert.equal(game.constants.GEAR_CAPACITY,40,"combined inventory supports forty slots");
+    assert.equal(game.constants.SECRET_EXCHANGE_INTERVAL_MS,6*60*60*1000,"secret exchange runs on six-hour windows");
+    assert.equal(game.constants.SECRET_EXCHANGE_OFFER_COUNT,4,"each secret exchange window has four offers");
     assert.deepEqual({...game.constants.GEAR_COST.axe[4]},{wood2:2000,gold2:2000});
     assert.deepEqual({...game.constants.GEAR_COST.pickaxe[4]},{ore2:2000,gold2:2000});
     assert.deepEqual({...game.constants.GEAR_COST.sword[4]},{wood2:2000,ore2:2000});
@@ -168,6 +170,35 @@ setTimeout(async()=>{
     game.renderProfile();assert(element("overlayContent").innerHTML.includes("/40"),"profile shows combined inventory capacity");
     game.setMenuOpen(true);assert(element("mainMenu").classList.contains("open"),"mobile menu expands on demand");assert(element("scene").classList.contains("menu-open"),"target HUD receives menu avoidance state");game.setMenuOpen(false);
     game.renderSettings();assert(!element("overlayContent").innerHTML.includes("지금 저장"),"manual save button is removed");assert(element("overlayContent").innerHTML.includes("자동 저장"));
+
+    const beforeSix=new Date(2026,8,7,5,59,59,0).getTime(),atSix=new Date(2026,8,7,6,0,0,0).getTime(),beforeNoon=new Date(2026,8,7,11,59,59,0).getTime(),atNoon=new Date(2026,8,7,12,0,0,0).getTime();
+    assert.equal(game.secretWindowId(beforeSix),"2026-09-07-0","local time before 06:00 belongs to the midnight window");
+    assert.equal(game.secretWindowId(atSix),"2026-09-07-1","local 06:00 starts a new fixed window");
+    assert.equal(game.secretWindowId(beforeNoon),"2026-09-07-1");assert.equal(game.secretWindowId(atNoon),"2026-09-07-2","local noon starts a new fixed window");
+    assert.equal(game.secretResetAt(beforeSix),atSix,"countdown targets the next local fixed boundary");
+    assert.equal(game.secretCountdownLabel(beforeSix),"00:00:01");
+
+    state=game.freshState();game.replaceState(state);state.lv=29;game.renderWorkshop();assert(!element("overlayContent").innerHTML.includes("비밀교환소"),"secret exchange is hidden below level 30");
+    const afterMidnight=new Date(2026,8,7,0,30,0,0).getTime();
+    state.lv=30;assert.equal(game.ensureSecretExchange(afterMidnight,false),true);const firstWindow=JSON.stringify(state.secretExchange.offers);assert.equal(state.secretExchange.offers.length,4);
+    assert(state.secretExchange.offers.every(offer=>game.constants.SECRET_EXCHANGE_TEMPLATES.find(template=>template.id===offer.templateId).minLevel<=30),"level 30 windows exclude every upper-tier offer");
+    assert(state.secretExchange.offers.flatMap(offer=>offer.costs).every(cost=>cost.amount%10===0),"random costs are quantized to ten-item units");
+    assert.equal(game.ensureSecretExchange(beforeSix,false),false,"reopening inside the same six-hour window preserves offers and prices");assert.equal(JSON.stringify(state.secretExchange.offers),firstWindow);
+    assert.equal(game.ensureSecretExchange(atSix,false),true,"06:00 refreshes an expired midnight window");const secondWindow=JSON.stringify(state.secretExchange.offers);assert.notEqual(secondWindow,firstWindow);
+    assert.equal(game.ensureSecretExchange(beforeNoon,false),false,"an offline restart before noon preserves the 06:00 window");assert.equal(JSON.stringify(state.secretExchange.offers),secondWindow);
+    assert.equal(game.ensureSecretExchange(atNoon,false),true,"an expired window refreshes immediately after an offline restart");assert.equal(state.secretExchange.windowId,"2026-09-07-2");assert.notEqual(JSON.stringify(state.secretExchange.offers),secondWindow);
+    game.renderWorkshop();assert(element("overlayContent").innerHTML.includes("비밀교환소"),"level 30 workshop shows the secret tab while offers remain");
+
+    const claimed={id:"claimed",templateId:3,reward:{key:"wood1",amount:100},costs:[{key:"wood0",amount:1000}],claimed:true},tradeNow=Date.now();
+    state.secretExchange={windowId:game.secretWindowId(tradeNow),offers:[{id:"trade",templateId:3,reward:{key:"wood1",amount:100},costs:[{key:"wood0",amount:1000}],claimed:false},{...claimed,id:"claimed2"},{...claimed,id:"claimed3"},{...claimed,id:"claimed4"}]};state.res.wood[0]=1000;state.res.wood[1]=0;game.selectSecretOffer("trade");
+    assert.equal(game.exchangeSelectedSecret(tradeNow),true,"a funded secret offer exchanges successfully");assert.equal(state.res.wood[0],0);assert.equal(state.res.wood[1],100);assert.equal(state.secretExchange.offers[0].claimed,true,"an exchanged offer is permanently consumed for its window");assert.equal(game.secretExchangeVisible(tradeNow),false,"the secret tab disappears after every offer is consumed");
+
+    state=game.freshState();game.replaceState(state);state.lv=60;state.secretExchange={windowId:game.secretWindowId(tradeNow),offers:[{id:"food-trade",templateId:9,reward:{key:"food0",amount:5},costs:[{key:"gold0",amount:700}],claimed:false},{...claimed,id:"food-claimed2"},{...claimed,id:"food-claimed3"},{...claimed,id:"food-claimed4"}]};state.res.gold[0]=700;game.selectSecretOffer("food-trade");assert.equal(game.exchangeSelectedSecret(tradeNow),true);assert.equal(state.foods[0],5,"food rewards enter the shared inventory");assert(state.unseenFoodIndices.includes(0),"exchanged food is marked as newly acquired");
+    assert(game.constants.SECRET_EXCHANGE_TEMPLATES.filter(template=>template.minLevel===60).every(template=>{const names=[template.reward.key,...template.costs.map(cost=>cost.key||"")];return names.some(key=>/2$/.test(key));}),"every exchange involving an upper-tier item is gated to level 60");
+
+    state=game.freshState();game.replaceState(state);state.openingSeen=false;game.renderIntro();assert.equal(element("saveSummary").textContent,"나의 나무꾼이 없습니다.");state.openingSeen=true;state.lv=37;state.place="pond";game.renderIntro();assert.equal(element("saveSummary").textContent,"나의 나무꾼 정보 : Lv.37, 장소: 연못");
+    element("playScreen").classList.add("active");state.tutorialSeen=false;assert.equal(game.startNewUserGuide(),true);assert.equal(game.tutorialStage(),"menu");assert(element("newUserGuide").classList.contains("hidden")===false);assert(element("menuToggle").classList.contains("tutorial-highlight"));assert.equal(game.showTutorialMapStep(),true);assert.equal(game.tutorialStage(),"map");assert(element("mapMenuButton").classList.contains("tutorial-map-highlight"));assert.equal(game.finishNewUserGuide(),true);assert.equal(state.tutorialSeen,true);assert(element("newUserGuide").classList.contains("hidden"),"tutorial disappears permanently after choosing the map");
+
     game.replaceMeta({endingSeen:true});state=game.freshState();game.replaceState(state);assert(state.gear.some(g=>g.special),"future games include the permanent Easter egg");game.renderProfile();assert(element("overlayContent").innerHTML.includes("이스터에그"));
     localStorage.setItem("isekai_lumberjack_save_v11","temporary ending save");const actions=element("endingActions");actions.classList.add("hidden");await game.finalizeEnding(actions);assert.equal(localStorage.getItem("isekai_lumberjack_save_v11"),null,"completed ending deletes ordinary save");assert.equal(JSON.parse(localStorage.getItem("isekai_lumberjack_meta")).endingSeen,true,"ending trophy flag persists separately");assert(!actions.classList.contains("hidden"),"ending actions appear after cleanup");
     console.log("game logic smoke tests: OK");

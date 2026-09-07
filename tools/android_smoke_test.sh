@@ -110,8 +110,8 @@ cp release/android-launch.png release/android-intro.png
 
 # Exercise the path that a real player takes. The old smoke test stopped at
 # the title screen and therefore could not catch a WebView failure after the
-# Game Start tap. The button sits at the horizontal centre and about 82% of
-# the fullscreen viewport on every supported phone aspect ratio.
+# Game Start tap. The v1.2 intro places the button in the central safe area;
+# 51% stays inside it across the supported phone aspect ratios.
 screen_size="$(adb shell wm size | tr -d '\r' | tail -1 | sed -E 's/.*: ([0-9]+)x([0-9]+)/\1 \2/')"
 if [[ ! "$screen_size" =~ ^[0-9]+\ [0-9]+$ ]]; then
   echo "Android launch ERROR: cannot determine emulator screen size" >&2
@@ -119,7 +119,7 @@ if [[ ! "$screen_size" =~ ^[0-9]+\ [0-9]+$ ]]; then
 fi
 read -r screen_width screen_height <<<"$screen_size"
 start_x=$((screen_width / 2))
-start_y=$((screen_height * 82 / 100))
+start_y=$((screen_height * 51 / 100))
 adb shell input tap "$start_x" "$start_y"
 
 check_alive() {

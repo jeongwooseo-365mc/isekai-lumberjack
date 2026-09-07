@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.1.4";
+  const APP_VERSION = "1.2.0";
   const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
   const META_KEY = "isekai_lumberjack_meta";
@@ -14,6 +14,8 @@
   const ENDING_CREDITS_DELAY_MS = 3000;
   const ENDING_CREDITS_MS = 38000;
   const ENDING_ACTION_DELAY_MS = 5000;
+  const SECRET_EXCHANGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+  const SECRET_EXCHANGE_OFFER_COUNT = 4;
   const FINAL_BOSS = { hp: 4444444, def: 5000, reflectMin: 500, reflectMax: 1500 };
   const TIERS = ["허름한", "쓸만한", "장인의", "영웅의", "신의"];
   const GRADES = ["하급", "중급", "상급"];
@@ -56,6 +58,25 @@
     { name: "고급 랍스터 정식", icon: "lobster_course", heal: 400, cost: {랍스터:10} },
   ];
 
+  const SECRET_EXCHANGE_TEMPLATES = [
+    { id:1, minLevel:30, reward:{key:"stone0",amount:500}, costs:[{key:"stone1",min:30,max:70}] },
+    { id:2, minLevel:60, reward:{key:"stone1",amount:500}, costs:[{key:"stone2",min:30,max:70}] },
+    { id:3, minLevel:30, reward:{key:"wood1",amount:100}, costs:[{key:"wood0",min:1000,max:2000},{key:"gold0",min:1000,max:2000}] },
+    { id:4, minLevel:30, reward:{key:"ore1",amount:100}, costs:[{key:"ore0",min:1000,max:2000},{key:"gold0",min:1000,max:2000}] },
+    { id:5, minLevel:30, reward:{key:"gold1",amount:100}, costs:[{key:"wood0",min:1000,max:2000},{key:"ore0",min:1000,max:2000}] },
+    { id:6, minLevel:60, reward:{key:"wood2",amount:100}, costs:[{key:"wood1",min:1000,max:2000},{key:"gold1",min:1000,max:2000}] },
+    { id:7, minLevel:60, reward:{key:"ore2",amount:100}, costs:[{key:"ore1",min:1000,max:2000},{key:"gold1",min:1000,max:2000}] },
+    { id:8, minLevel:60, reward:{key:"gold2",amount:100}, costs:[{key:"wood1",min:1000,max:2000},{key:"ore1",min:1000,max:2000}] },
+    { id:9, minLevel:30, reward:{key:"food0",amount:5}, randomCostKeys:["wood0","ore0","gold0"], costs:[{min:700,max:1300}] },
+    { id:10, minLevel:30, reward:{key:"food2",amount:4}, randomCostKeys:["wood0","ore0","gold0"], costs:[{min:700,max:1300}] },
+    { id:11, minLevel:30, reward:{key:"wood0",amount:1000}, costs:[{key:"wood1",min:100,max:200}] },
+    { id:12, minLevel:30, reward:{key:"ore0",amount:1000}, costs:[{key:"ore1",min:100,max:200}] },
+    { id:13, minLevel:30, reward:{key:"gold0",amount:1000}, costs:[{key:"gold1",min:100,max:200}] },
+    { id:14, minLevel:60, reward:{key:"wood1",amount:1000}, costs:[{key:"wood2",min:100,max:200}] },
+    { id:15, minLevel:60, reward:{key:"ore1",amount:1000}, costs:[{key:"ore2",min:100,max:200}] },
+    { id:16, minLevel:60, reward:{key:"gold1",amount:1000}, costs:[{key:"gold2",min:100,max:200}] },
+  ];
+
   const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"dungeon", map:"map", ending:"ending" };
   const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집에서 휴식해 주세요.";
   const SFX_FILES = new Set([
@@ -68,11 +89,11 @@
   const $ = (id) => document.getElementById(id);
   const dom = {
     intro: $("introScreen"), story: $("storyScreen"), bossPrelude: $("bossPreludeScreen"), play: $("playScreen"), ending: $("endingScreen"), scene: $("scene"), placeTitle: $("placeTitle"),
-    menuToggle: $("menuToggle"), mainMenu: $("mainMenu"), targetHud: $("targetHud"), targetArea: $("targetArea"), targetName: $("targetName"), targetImage: $("targetImage"), targetHpFill: $("targetHpFill"), targetHpText: $("targetHpText"),
+    menuToggle: $("menuToggle"), mainMenu: $("mainMenu"), mapMenuButton: $("mapMenuButton"), targetHud: $("targetHud"), targetArea: $("targetArea"), targetName: $("targetName"), targetImage: $("targetImage"), targetHpFill: $("targetHpFill"), targetHpText: $("targetHpText"),
     character: $("character"), fishingLine: $("fishingLine"), bobber: $("bobber"), fishingStatus: $("fishingStatus"), tapHint: $("tapHint"), lootBurst: $("lootBurst"), hitFlash: $("hitFlash"),
     level: $("levelLabel"), xpFill: $("xpFill"), xpText: $("xpText"), hp: $("hpStat"), hpMeter: $("hpMeter"), hpFill: $("hpFill"), attack: $("attackStat"), place: $("placeStat"), equipped: $("equippedGrid"), log: $("logPanel"),
     autoButton: $("autoButton"), autoState: $("autoState"), overlay: $("overlay"), overlayTitle: $("overlayTitle"), overlaySubtitle: $("overlaySubtitle"), overlayContent: $("overlayContent"),
-    toast: $("toast"), dialog: $("confirmDialog"), dialogTitle: $("dialogTitle"), dialogMessage: $("dialogMessage"), dialogCancel: $("dialogCancel"), dialogConfirm: $("dialogConfirm"),
+    toast: $("toast"), dialog: $("confirmDialog"), dialogTitle: $("dialogTitle"), dialogMessage: $("dialogMessage"), dialogCancel: $("dialogCancel"), dialogConfirm: $("dialogConfirm"), guide: $("newUserGuide"),
   };
 
   let S;
@@ -103,6 +124,8 @@
   let cinematicToken = 0;
   let cinematicTimers = [];
   let menuOpen = false;
+  let selectedSecretOfferId = null;
+  let tutorialStage = "";
 
   function newId(prefix="g") { return `${prefix}_${Date.now().toString(36)}_${Math.floor(Math.random()*1e9).toString(36)}`; }
 
@@ -114,7 +137,7 @@
       rngSeed: (Date.now() >>> 0) || 1, res:{wood:[0,0,0],ore:[0,0,0],gold:[0,0,0]},
       fish:Object.fromEntries(FISH.map(x=>[x,0])), stones:[0,0,0], houses:[true,false,false,false,false], house:0,
       gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foods:Array(RECIPES.length).fill(0), equippedFood:null, unseenGearIds:[], unseenFoodIndices:[], logs:[], target:null, fishState:null,
-      restProgress:0, restElapsed:0, openingSeen:false, worldGateUnlocked:false, ended:false, lastSeen:Date.now(), lastVisit:Date.now(), settings:{bgm:.5,sfx:.5},
+      restProgress:0, restElapsed:0, openingSeen:false, tutorialSeen:false, secretExchange:null, worldGateUnlocked:false, ended:false, lastSeen:Date.now(), lastVisit:Date.now(), settings:{bgm:.5,sfx:.5},
     };
   }
 
@@ -164,6 +187,58 @@
     let u=0, v=0; while(!u) u=rand(); while(!v) v=rand();
     const z=Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
     return Math.round(Math.max(min,Math.min(max,(min+max)/2+z*(max-min)/6)));
+  }
+
+  function randNormStep(min,max,step=10) {
+    const rounded=Math.round(randNorm(min,max)/step)*step;
+    return Math.max(min,Math.min(max,rounded));
+  }
+
+  function secretWindowId(now=Date.now()) {
+    const date=new Date(Math.max(0,Number(now)||0));
+    const year=date.getFullYear(),month=String(date.getMonth()+1).padStart(2,"0"),day=String(date.getDate()).padStart(2,"0");
+    return `${year}-${month}-${day}-${Math.floor(date.getHours()/6)}`;
+  }
+
+  function secretResetAt(now=Date.now()) {
+    const date=new Date(Math.max(0,Number(now)||0));
+    date.setHours((Math.floor(date.getHours()/6)+1)*6,0,0,0);
+    return date.getTime();
+  }
+
+  function createSecretExchange(windowId=secretWindowId(),level=S.lv) {
+    const pool=SECRET_EXCHANGE_TEMPLATES.filter(template=>level>=template.minLevel).slice();
+    for(let index=pool.length-1;index>0;index--){const swap=Math.floor(rand()*(index+1));[pool[index],pool[swap]]=[pool[swap],pool[index]];}
+    const offers=pool.slice(0,SECRET_EXCHANGE_OFFER_COUNT).map(template=>{
+      const randomKey=template.randomCostKeys?.[Math.floor(rand()*template.randomCostKeys.length)];
+      const costs=template.costs.map(cost=>({key:cost.key||randomKey,amount:randNormStep(cost.min,cost.max,10)}));
+      return {id:`secret_${windowId}_${template.id}`,templateId:template.id,reward:{...template.reward},costs,claimed:false};
+    });
+    return {windowId,offers};
+  }
+
+  function validSecretExchange(exchange,windowId) {
+    return !!exchange&&exchange.windowId===windowId&&Array.isArray(exchange.offers)&&exchange.offers.length===SECRET_EXCHANGE_OFFER_COUNT&&exchange.offers.every(offer=>offer&&typeof offer.id==="string"&&offer.reward&&Array.isArray(offer.costs)&&typeof offer.claimed==="boolean");
+  }
+
+  function ensureSecretExchange(now=Date.now(),save=true) {
+    if(!S||S.lv<30)return false;
+    const windowId=secretWindowId(now);
+    if(validSecretExchange(S.secretExchange,windowId))return false;
+    S.secretExchange=createSecretExchange(windowId,S.lv);
+    selectedSecretOfferId=S.secretExchange.offers[0]?.id||null;
+    if(save)persist(false);
+    return true;
+  }
+
+  function activeSecretOffers(now=Date.now()) {
+    if(!S||S.lv<30)return [];
+    ensureSecretExchange(now);
+    return S.secretExchange.offers.filter(offer=>!offer.claimed);
+  }
+
+  function secretExchangeVisible(now=Date.now()) {
+    return S.lv>=30&&activeSecretOffers(now).length>0;
   }
 
   function baseMaxHp() {
@@ -501,12 +576,15 @@
   }
 
   function updateActivityStatus() {
+    const now=Date.now(),exchangeChanged=ensureSecretExchange(now);
+    if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();
+    document.querySelectorAll?.("[data-secret-countdown]").forEach(button=>button.textContent=`교환하기 · ${secretCountdownLabel(now)}`);
     if(S.place==="home"&&S.resting) {
       dom.fishingStatus.textContent=`휴식 중 · ${elapsedLabel(S.restElapsed)} 경과 · 1초당 +${HOUSES[S.house].heal}`;
       return;
     }
     if(S.place==="pond"&&S.fishState) {
-      const seconds=Math.max(0,Math.ceil((S.fishState.endAt-Date.now())/1000));
+      const seconds=Math.max(0,Math.ceil((S.fishState.endAt-now)/1000));
       dom.fishingStatus.textContent=`입질을 기다리는 중 · ${seconds}초`;
     }
   }
@@ -584,6 +662,28 @@
 
   function toggleMenu() { setMenuOpen(!menuOpen); }
 
+  function clearNewUserGuideVisuals() {
+    tutorialStage="";dom.guide.classList.add("hidden");dom.guide.classList.remove("map-step");dom.menuToggle.classList.remove("tutorial-highlight");
+    dom.mapMenuButton.classList.remove("tutorial-map-highlight");
+  }
+
+  function startNewUserGuide() {
+    if(S.tutorialSeen||!dom.play.classList.contains("active")){clearNewUserGuideVisuals();return false;}
+    tutorialStage="menu";setMenuOpen(false);dom.guide.classList.remove("hidden","map-step");dom.menuToggle.classList.add("tutorial-highlight");
+    dom.mapMenuButton.classList.remove("tutorial-map-highlight");return true;
+  }
+
+  function showTutorialMapStep() {
+    if(tutorialStage!=="menu")return false;
+    tutorialStage="map";setMenuOpen(true);dom.guide.classList.add("map-step");dom.menuToggle.classList.remove("tutorial-highlight");
+    dom.mapMenuButton.classList.add("tutorial-map-highlight");return true;
+  }
+
+  function finishNewUserGuide() {
+    if(!tutorialStage)return false;
+    S.tutorialSeen=true;clearNewUserGuideVisuals();persist();return true;
+  }
+
   function render(save=false) {
     renderScene(); renderHud();
     dom.autoState.textContent=S.auto?"ON":"OFF"; dom.autoButton.classList.toggle("on",S.auto);
@@ -637,7 +737,7 @@
   }
 
   function showScreen(name) {
-    if(name!=="play")setMenuOpen(false);
+    if(name!=="play"){setMenuOpen(false);clearNewUserGuideVisuals();}
     [dom.intro,dom.story,dom.bossPrelude,dom.play,dom.ending].forEach(x=>x.classList.remove("active"));
     ({intro:dom.intro,story:dom.story,bossPrelude:dom.bossPrelude,play:dom.play,ending:dom.ending})[name].classList.add("active");
   }
@@ -676,6 +776,60 @@
   function canPay(cost) { return Object.entries(cost).every(([key,value])=>costValue(key)>=value); }
   function pay(cost) { if(!canPay(cost)) return false; for(const[key,value] of Object.entries(cost)){const m=key.match(/(wood|ore|gold)(\d)/);S.res[m[1]][+m[2]]-=value;} return true; }
   function costMeta(key) { const m=key.match(/(wood|ore|gold)(\d)/); return {kind:m[1],grade:+m[2],name:`${GRADES[+m[2]]} ${RESOURCE_LABEL[m[1]]}`,icon:resourceIcon(m[1],+m[2])}; }
+
+  function secretItemMeta(key) {
+    let match=String(key).match(/^(wood|ore|gold)([0-2])$/);
+    if(match){const kind=match[1],grade=+match[2];return {key,kind:"resource",name:`${GRADES[grade]} ${RESOURCE_LABEL[kind]}`,icon:resourceIcon(kind,grade),value:"재화",description:"장비를 제작하는 데 필요한 재료입니다."};}
+    match=String(key).match(/^stone([0-2])$/);
+    if(match){const grade=+match[1];return {key,kind:"stone",name:`${GRADES[grade]} 강화의 돌`,icon:stoneIcon(grade),value:"재화",description:"장비를 강화하는 데 필요한 재료입니다."};}
+    match=String(key).match(/^food([0-4])$/);
+    if(match){const index=+match[1],recipe=RECIPES[index];return {key,kind:"food",index,name:recipe.name,icon:foodIcon(index),value:`체력 +${recipe.heal.toLocaleString()}`,description:`보유 ${foodCount(index).toLocaleString()}개 · 마이페이지에서 장착 또는 섭취`};}
+    return {key,kind:"unknown",name:key,icon:"assets/ui/logo_mark.png",value:"",description:""};
+  }
+
+  function secretItemCount(key) {
+    let match=String(key).match(/^(wood|ore|gold)([0-2])$/);if(match)return capped(S.res[match[1]][+match[2]]);
+    match=String(key).match(/^stone([0-2])$/);if(match)return capped(S.stones[+match[1]]);
+    match=String(key).match(/^food([0-4])$/);if(match)return foodCount(+match[1]);
+    return 0;
+  }
+
+  function canPaySecret(costs) { return costs.every(cost=>secretItemCount(cost.key)>=cost.amount); }
+
+  function paySecret(costs) {
+    if(!canPaySecret(costs))return false;
+    for(const cost of costs){
+      let match=cost.key.match(/^(wood|ore|gold)([0-2])$/);if(match){S.res[match[1]][+match[2]]-=cost.amount;continue;}
+      match=cost.key.match(/^stone([0-2])$/);if(match){S.stones[+match[1]]-=cost.amount;continue;}
+      match=cost.key.match(/^food([0-4])$/);if(match){S.foods[+match[1]]=capped(foodCount(+match[1])-cost.amount);}
+    }
+    return true;
+  }
+
+  function canReceiveSecret(reward) {
+    const current=secretItemCount(reward.key);
+    if(current+reward.amount>MAX_ITEM_COUNT)return false;
+    const meta=secretItemMeta(reward.key);
+    return meta.kind!=="food"||current>0||inventoryItemCount()<GEAR_CAPACITY;
+  }
+
+  function addSecretReward(reward) {
+    if(!canReceiveSecret(reward))return false;
+    let match=reward.key.match(/^(wood|ore|gold)([0-2])$/);if(match){S.res[match[1]][+match[2]]=capped(S.res[match[1]][+match[2]]+reward.amount);return true;}
+    match=reward.key.match(/^stone([0-2])$/);if(match){S.stones[+match[1]]=capped(S.stones[+match[1]]+reward.amount);return true;}
+    match=reward.key.match(/^food([0-4])$/);if(match){const index=+match[1];S.foods[index]=capped(foodCount(index)+reward.amount);markFoodUnseen(index);return true;}
+    return false;
+  }
+
+  function secretRequirementHtml(costs) {
+    return costs.map(cost=>{const meta=secretItemMeta(cost.key),have=secretItemCount(cost.key);return `<div class="requirement-row ${have<cost.amount?"missing":""}"><img src="${meta.icon}" alt=""><span>${meta.name}</span><b>${have.toLocaleString()} / ${cost.amount.toLocaleString()}</b></div>`;}).join("");
+  }
+
+  function secretCountdownLabel(now=Date.now()) {
+    const seconds=Math.max(0,Math.ceil((secretResetAt(now)-now)/1000));
+    const hours=String(Math.floor(seconds/3600)).padStart(2,"0"),minutes=String(Math.floor(seconds%3600/60)).padStart(2,"0"),remaining=String(seconds%60).padStart(2,"0");
+    return `${hours}:${minutes}:${remaining}`;
+  }
 
   function requirementHtml(cost) {
     if(!Object.keys(cost).length) return `<div class="requirement-row"><img src="assets/ui/profile.png" alt=""><span>기본 지급 장비</span><b>보유</b></div>`;
@@ -726,14 +880,51 @@
   }
 
   function renderWorkshop() {
+    ensureSecretExchange(Date.now());
+    if(selectedWorkshop.type==="secret"){
+      if(secretExchangeVisible())return renderSecretExchange();
+      selectedWorkshop={type:"axe",tier:1};
+    }
     const {type,tier}=selectedWorkshop, cost=GEAR_COST[type][tier], sample={type,tier,enh:0};
     setOverlayHeader("제작소","도구와 갑옷을 재료로 직접 제작합니다");
     const stat=gearEffectText(sample);
+    const secretTab=secretExchangeVisible()?`<button class="secret-tab" data-do="workshop-type" data-type="secret">비밀교환소</button>`:"";
     dom.overlayContent.innerHTML=`
-      <div class="category-tabs">${Object.keys(GEAR_LABEL).map(key=>`<button class="${key===type?"active":""}" data-do="workshop-type" data-type="${key}">${GEAR_LABEL[key]}</button>`).join("")}</div>
+      <div class="category-tabs">${Object.keys(GEAR_LABEL).map(key=>`<button class="${key===type?"active":""}" data-do="workshop-type" data-type="${key}">${GEAR_LABEL[key]}</button>`).join("")}${secretTab}</div>
       <div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(sample)}" alt=""></div><div class="detail-copy"><h3>${TIERS[tier]} ${GEAR_LABEL[type]}</h3><p class="value">${stat}</p><p>${tier===0?"처음 지급되는 기본 장비입니다.":"같은 장비를 여러 개 제작할 수 있습니다."}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${requirementHtml(cost)}<button class="primary-button wide-action" data-do="craft" ${tier===0||!canPay(cost)||crafting?"disabled":""}>${tier===0?"기본 지급":crafting?"제작 완료!":"제작하기"}</button></div></div>
       <div class="section-title">제작 목록</div><div class="item-list">${[0,1,2,3,4].map(i=>{const item={type,tier:i,enh:0};return `<button class="item-card ${i===tier?"selected":""}" data-do="workshop-tier" data-tier="${i}"><img src="assets/items/${type}_${i}.png" alt=""><span><b>${TIERS[i]} ${GEAR_LABEL[type]}</b><small>${gearEffectText(item)}</small></span></button>`;}).join("")}</div>
       <div class="section-title">보유 재화</div>${walletHtml()}`;
+  }
+
+  function renderSecretExchange(now=Date.now()) {
+    ensureSecretExchange(now);
+    const offers=activeSecretOffers(now);
+    if(!offers.length){selectedWorkshop={type:"axe",tier:1};return renderWorkshop();}
+    let offer=offers.find(item=>item.id===selectedSecretOfferId)||offers[0];selectedSecretOfferId=offer.id;
+    const reward=secretItemMeta(offer.reward.key),canExchange=canPaySecret(offer.costs)&&canReceiveSecret(offer.reward);
+    setOverlayHeader("비밀교환소","현지 시각 00시·06시·12시·18시에 품목이 바뀝니다");
+    const tabs=Object.keys(GEAR_LABEL).map(key=>`<button data-do="workshop-type" data-type="${key}">${GEAR_LABEL[key]}</button>`).join("");
+    dom.overlayContent.innerHTML=`
+      <div class="category-tabs">${tabs}<button class="secret-tab active" data-do="workshop-type" data-type="secret">비밀교환소</button></div>
+      <div class="detail-card secret-detail"><div class="detail-hero"><div class="detail-icon"><img src="${reward.icon}" alt=""></div><div class="detail-copy"><h3>${reward.name} x${offer.reward.amount.toLocaleString()}</h3><p class="value">${reward.value}</p><p>${reward.description}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${secretRequirementHtml(offer.costs)}<button class="primary-button wide-action secret-exchange-button" data-do="secret-exchange" data-secret-countdown ${canExchange?"":"disabled"}>교환하기 · ${secretCountdownLabel(now)}</button></div></div>
+      <div class="section-title">한정 교환 목록 · 남은 ${offers.length}/${SECRET_EXCHANGE_OFFER_COUNT}</div><div class="item-list">${offers.map(item=>{const meta=secretItemMeta(item.reward.key);return `<button class="item-card ${item.id===offer.id?"selected":""}" data-do="secret-offer" data-id="${item.id}"><img src="${meta.icon}" alt=""><span><b>${meta.name} x${item.reward.amount.toLocaleString()}</b><small>${item.costs.map(cost=>`${secretItemMeta(cost.key).name} ${cost.amount.toLocaleString()}`).join(" · ")}</small></span></button>`;}).join("")}</div>
+      <div class="section-title">보유 재화</div>${walletHtml()}`;
+  }
+
+  function exchangeSelectedSecret(now=Date.now()) {
+    const changed=ensureSecretExchange(now);
+    if(changed){toast("교환 목록이 갱신되었습니다.");renderSecretExchange(now);return false;}
+    const offer=activeSecretOffers(now).find(item=>item.id===selectedSecretOfferId);
+    if(!offer){renderWorkshop();return false;}
+    if(!canPaySecret(offer.costs)){toast("교환에 필요한 아이템이 부족합니다.");playSfx("ui_error");return false;}
+    if(!canReceiveSecret(offer.reward)){toast(secretItemMeta(offer.reward.key).kind==="food"&&secretItemCount(offer.reward.key)===0?"보관함이 가득 찼습니다.":"보유 한도를 초과해 교환할 수 없습니다.");playSfx("ui_error");return false;}
+    if(!paySecret(offer.costs)||!addSecretReward(offer.reward))return false;
+    offer.claimed=true;
+    const reward=secretItemMeta(offer.reward.key);addLog(`비밀교환소: ${reward.name} x${offer.reward.amount.toLocaleString()} 교환 완료.`,reward.icon,"rare");
+    playSfx("purchase");toast("교환이 완료되었습니다.");
+    const remaining=activeSecretOffers(now);selectedSecretOfferId=remaining[0]?.id||null;
+    if(!remaining.length)selectedWorkshop={type:"axe",tier:1};
+    renderWorkshop();renderHud();persist();return true;
   }
 
   function craftSelected() {
@@ -927,9 +1118,8 @@
   }
 
   function renderIntro() {
-    const last=new Date(S.lastVisit||S.lastSeen||Date.now()).toLocaleString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
-    $("saveSummary").innerHTML=S.ended?`<b>귀환 완료</b><br>Lv.${S.lv} · ${last}`:`<b>내 세이브</b><br>최근 접속 ${last} · Lv.${S.lv} · 체력 ${Math.floor(S.hp).toLocaleString()} / ${maxHp().toLocaleString()}`;
-    $("startButton").textContent=S.ended?"엔딩 보기":"게임 시작";$("versionResetNote").textContent=resetNotice;
+    $("saveSummary").textContent=S.openingSeen?`나의 나무꾼 정보 : Lv.${S.lv}, 장소: ${currentPlaceName()}`:"나의 나무꾼이 없습니다.";
+    $("startButton").textContent="게임 시작";$("versionResetNote").textContent=resetNotice;
   }
 
   async function startGame() {
@@ -941,10 +1131,11 @@
   async function enterPlay() {
     settleOffline(Date.now());
     if(S.ended){startEnding();return;}
-    showScreen("play");render();startLoops();setBgm(S.place);await persist();
+    ensureSecretExchange(Date.now(),false);showScreen("play");render();startLoops();setBgm(S.place);if(!S.tutorialSeen)startNewUserGuide();await persist();
   }
 
   function sceneAction(event) {
+    if(tutorialStage)return;
     if(event.target.closest("button")||dom.overlay.classList.contains("open"))return;
     if(menuOpen){setMenuOpen(false);return;}
     if(S.place==="home") {toggleResting();return;}
@@ -956,6 +1147,7 @@
   }
 
   function logicalBack() {
+    if(tutorialStage){if(tutorialStage==="map")setMenuOpen(true);return;}
     if(dom.dialog.classList.contains("open")){dom.dialogCancel.click();return;}
     if(dom.overlay.classList.contains("open")){overlayBack();return;}
     if(menuOpen){setMenuOpen(false);return;}
@@ -969,6 +1161,8 @@
     else if(action==="world")worldConfirm();
     else if(action==="workshop-type"){selectedWorkshop.type=el.dataset.type;selectedWorkshop.tier=1;renderWorkshop();}
     else if(action==="workshop-tier"){selectedWorkshop.tier=+el.dataset.tier;renderWorkshop();}
+    else if(action==="secret-offer"){selectedSecretOfferId=el.dataset.id;renderSecretExchange();}
+    else if(action==="secret-exchange")exchangeSelectedSecret();
     else if(action==="craft")craftSelected();
     else if(action==="house-select"){selectedHouse=+el.dataset.house;renderEstate();}
     else if(action==="house-action")houseAction();
@@ -994,19 +1188,19 @@
 
   function resumeFromBackground() {
     if(!S||document.hidden)return;
-    settleOffline(Date.now());
+    settleOffline(Date.now());const exchangeChanged=ensureSecretExchange(Date.now(),false);
     if(dom.play.classList.contains("active")) {
       if(S.ended)startEnding();
-      else {render();startLoops();setBgm(dom.overlay.classList.contains("open")?"map":S.place);persist(false);}
+      else {render();if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();startLoops();setBgm(dom.overlay.classList.contains("open")?"map":S.place);persist(false);}
     } else if(dom.intro.classList.contains("active"))setBgm("title");
     else if(dom.ending.classList.contains("active"))setBgm("ending");
   }
 
   function bindEvents() {
-    $("startButton").addEventListener("click",startGame);$("resetButton").addEventListener("click",resetSave);$("introQuitButton").addEventListener("click",quitGame);$("endingQuitButton").addEventListener("click",quitGame);
+    $("startButton").addEventListener("click",startGame);$("endingQuitButton").addEventListener("click",quitGame);
     $("bossStartButton").addEventListener("click",startFinalBattle);$("endingIntroButton").addEventListener("click",returnToIntroAfterEnding);
-    dom.scene.addEventListener("click",sceneAction);dom.menuToggle.addEventListener("click",event=>{event.stopPropagation();playSfx("ui_click");toggleMenu();});dom.autoButton.addEventListener("click",event=>{event.stopPropagation();toggleAuto();setMenuOpen(false);});
-    dom.mainMenu.addEventListener("click",event=>{const button=event.target.closest("[data-menu]");if(!button)return;playSfx("ui_click");openView(button.dataset.menu);});
+    dom.scene.addEventListener("click",sceneAction);dom.menuToggle.addEventListener("click",event=>{event.stopPropagation();playSfx("ui_click");if(tutorialStage==="menu"){showTutorialMapStep();return;}if(tutorialStage==="map"){setMenuOpen(true);return;}toggleMenu();});dom.autoButton.addEventListener("click",event=>{event.stopPropagation();if(tutorialStage)return;toggleAuto();setMenuOpen(false);});
+    dom.mainMenu.addEventListener("click",event=>{const button=event.target.closest("[data-menu]");if(!button)return;if(tutorialStage&&button.dataset.menu!=="map")return;playSfx("ui_click");if(tutorialStage)finishNewUserGuide();openView(button.dataset.menu);});
     $("backButton").addEventListener("click",overlayBack);$("closeButton").addEventListener("click",()=>{playSfx("ui_back");closeOverlay();});dom.overlayContent.addEventListener("click",handleOverlayClick);
     dom.overlayContent.addEventListener("input",event=>{const input=event.target.closest("[data-setting]");if(!input)return;const key=input.dataset.setting;S.settings[key]=+input.value/100;input.nextElementSibling.textContent=`${input.value}%`;if(key==="bgm"&&bgm){bgm.volume=Math.min(1,S.settings.bgm*1.4);if(S.settings.bgm>0&&bgm.paused)bgm.play().catch(()=>{});}persist();});
     document.addEventListener("pointerdown",()=>{if(dom.intro.classList.contains("active"))setBgm("title");},{once:true});
@@ -1025,7 +1219,7 @@
       try{const parsed=JSON.parse(raw);if(parsed.version===SAVE_VERSION)S=parsed;else{resetNotice=`업데이트 ${APP_VERSION} 적용으로 이전 세이브가 초기화되었습니다.`;await storage.remove();S=freshState();}}
       catch(error){resetNotice="손상된 세이브를 초기화했습니다.";S=freshState();}
     } else S=freshState();
-    S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();refreshWorldGateUnlock();
+    S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;if(typeof S.tutorialSeen!=="boolean")S.tutorialSeen=!!S.openingSeen;S.secretExchange=S.secretExchange||null;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();refreshWorldGateUnlock();ensureSecretExchange(Date.now(),false);
     if(M.endingSeen&&!S.gear.some(g=>g.special))S.gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
     if(!S.logs.length)addLog("이세계에서 눈을 떴습니다.");
     bindEvents();renderIntro();showScreen("intro");
@@ -1075,8 +1269,26 @@
       renderProfile,
       renderSettings,
       renderHud,
+      renderIntro,
       craftSelected,
       cookSelected,
+      secretWindowId,
+      secretResetAt,
+      secretCountdownLabel,
+      createSecretExchange,
+      ensureSecretExchange,
+      activeSecretOffers,
+      secretExchangeVisible,
+      secretItemMeta,
+      secretItemCount,
+      canPaySecret,
+      canReceiveSecret,
+      exchangeSelectedSecret,
+      selectSecretOffer:(id)=>{selectedSecretOfferId=id;selectedWorkshop.type="secret";},
+      startNewUserGuide,
+      showTutorialMapStep,
+      finishNewUserGuide,
+      tutorialStage:()=>tutorialStage,
       equipSelectedFood,
       unequipSelectedFood,
       eatSelectedFood,
@@ -1088,7 +1300,7 @@
       startEnding,
       finalizeEnding,
       setMenuOpen,
-      constants:{APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES},
+      constants:{APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES,SECRET_EXCHANGE_INTERVAL_MS,SECRET_EXCHANGE_OFFER_COUNT,SECRET_EXCHANGE_TEMPLATES},
     };
   }
 

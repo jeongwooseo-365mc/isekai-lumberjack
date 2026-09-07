@@ -13,16 +13,13 @@
       <section id="introScreen" class="screen intro-screen active" aria-label="인트로">
         <div class="intro-shade"></div>
         <div class="intro-content">
-          <img class="logo-mark" src="assets/ui/logo_mark.png" alt="">
-          <h1>이세계로 소환되어버린<br><strong>나무꾼</strong></h1>
-          <p>믿을 것은 몸뚱이와 손에 쥔 연장뿐.<br>베고, 캐고, 싸우고, 낚으며 살아남으십시오.</p>
-          <button id="startButton" class="primary-button">게임 시작</button>
-          <div id="saveSummary" class="save-summary"></div>
-          <div class="intro-actions">
-            <button id="resetButton" class="text-button danger">세이브 초기화</button>
-            <button id="introQuitButton" class="text-button">게임 종료</button>
+          <img class="intro-title-logo" src="assets/ui/intro_title_logo.png" alt="이세계로 소환되어버린 나무꾼">
+          <div class="intro-core">
+            <button id="startButton" class="primary-button">게임 시작</button>
+            <div id="saveSummary" class="save-summary"></div>
+            <div id="versionResetNote" class="version-note"></div>
           </div>
-          <div id="versionResetNote" class="version-note"></div>
+          <img class="intro-studio-logo" src="assets/ui/studio_logo.png" alt="제작사 로고">
         </div>
       </section>
 
@@ -45,7 +42,7 @@
           <div id="placeTitle" class="place-title"></div>
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="메뉴 펼치기" aria-controls="mainMenu" aria-expanded="false"><span aria-hidden="true">☰</span><b>메뉴</b></button>
           <nav id="mainMenu" class="main-menu" aria-label="주 메뉴" aria-hidden="true">
-            <button data-menu="map" aria-label="지도"><img src="assets/ui/map.png" alt=""><span>지도</span></button>
+            <button id="mapMenuButton" data-menu="map" aria-label="지도"><img src="assets/ui/map.png" alt=""><span>지도</span></button>
             <button data-menu="workshop" aria-label="제작소"><img src="assets/ui/workshop.png" alt=""><span>제작소</span></button>
             <button data-menu="realestate" aria-label="부동산"><img src="assets/ui/realestate.png" alt=""><span>부동산</span></button>
             <button data-menu="cooking" aria-label="요리"><img src="assets/ui/cooking.png" alt=""><span>요리</span></button>
@@ -54,6 +51,10 @@
             <button id="autoButton" aria-label="오토"><img src="assets/ui/auto.png" alt=""><span>오토</span><b id="autoState">OFF</b></button>
             <button data-menu="settings" aria-label="설정"><img src="assets/ui/settings.png" alt=""><span>설정</span></button>
           </nav>
+
+          <div id="newUserGuide" class="new-user-guide hidden" aria-live="polite">
+            <p>우측상단의 메뉴버튼의 지도 아이콘을 눌러 활동할 곳을 정해보세요!</p>
+          </div>
 
           <div id="targetHud" class="target-hud hidden">
             <b id="targetName"></b>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.1.4."""
+"""Validate runtime assets, mobile layout rules, and packaging inputs for v1.2.0."""
 
 from __future__ import annotations
 
@@ -118,6 +118,8 @@ def main() -> int:
     for name in ui_names:
         check_image(f"assets/ui/{name}.png", (256, 256))
     check_image("assets/ui/logo_mark.png", (512, 512))
+    check_image("assets/ui/intro_title_logo.png")
+    check_image("assets/ui/studio_logo.png")
     check_image("src-tauri/icons/icon.png", (512, 512))
     check_image("src-tauri/icons/icon-mobile.png", (512, 512))
     with Image.open(ROOT / "src-tauri/icons/icon-mobile.png") as mobile_icon:
@@ -188,7 +190,7 @@ def main() -> int:
     check("width: 100vw; max-width: 560px; width: min(100vw, 560px); height: 100vh; height: 100dvh" in css, "game shell must retain width and height fallbacks for older Android WebViews")
     check("top: 0; right: 0; bottom: 0; left: 0; inset: 0" in css, "full-screen layers must retain pre-inset Android WebView positioning")
     check("-webkit-overflow-scrolling: touch" in css and "overflow-y: auto" in css, "scrollable panels must retain touch scrolling")
-    check('const APP_VERSION = "1.1.4"' in game_js and 'const SAVE_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.1.4 must preserve the v1.1 save schema")
+    check('const APP_VERSION = "1.2.0"' in game_js and 'const SAVE_VERSION = "1.1.0"' in game_js and 'const SAVE_KEY = "isekai_lumberjack_save_v11"' in game_js, "v1.2.0 must preserve the v1.1 save schema")
     check("const MAX_ITEM_COUNT = 99999" in game_js and "const GEAR_CAPACITY = 40" in game_js, "material and combined inventory limits must match v1.1.4")
     check('{ name: "생선 수프", icon: "fish_soup", heal: 75, cost: {해초:100,민어:20} }' in game_js, "fish soup balance is incorrect")
     check('{ name: "해산물 스튜", icon: "seafood_stew", heal: 225, cost: {해초:100,조개:100,민어:50} }' in game_js, "seafood stew balance is incorrect")
@@ -206,6 +208,12 @@ def main() -> int:
     check("return roll<(20/55)?2:1" in game_js, "high normal rewards must be limited to mid and high grades")
     check("Math.floor(amount/1000)}k" in game_js, "large XP values must use integer k notation")
     check("{wood2:2000,gold2:2000}" in game_js and "{wood2:800,ore2:800,gold2:400}" in game_js, "divine equipment recipes must use doubled costs")
+    check('data-type="secret">비밀교환소' in game_js and "SECRET_EXCHANGE_OFFER_COUNT = 4" in game_js, "workshop must expose four-item secret exchange windows")
+    check("date.getHours()/6" in game_js and "date.setHours((Math.floor(date.getHours()/6)+1)*6,0,0,0)" in game_js, "secret exchange must use local 00/06/12/18 fixed boundaries")
+    check("template=>level>=template.minLevel" in game_js and "minLevel:60" in game_js, "upper-tier secret offers must stay locked until level 60")
+    check("offer.claimed=true" in game_js and "!offer.claimed" in game_js, "secret offers must disappear after one exchange")
+    check('id="newUserGuide"' in html and 'id="mapMenuButton"' in html and "tutorialSeen:false" in game_js, "fresh games must include the one-time map tutorial")
+    check('class="intro-title-logo"' in html and 'class="intro-studio-logo"' in html and 'id="resetButton"' not in html and 'id="introQuitButton"' not in html, "intro must use the supplied logos and omit reset/quit buttons")
     for width, height in ((360, 640), (390, 700), (430, 932), (560, 900)):
         if height <= 720:
             scene_height, hud_height = max(height * .52, 320), max(height * .48, 300)
@@ -247,7 +255,7 @@ def main() -> int:
     expected_cert = "f477923fc8ac5d9180c24ae8541680d9910894ac7463e4126fd7cb1d18c33a7d"
     check((ROOT / "tools/android-signing-cert.sha256").read_text(encoding="utf-8").strip() == expected_cert, "Android signing certificate fingerprint changed")
     check("actual_cert" in release_workflow and "expected_cert" in release_workflow, "Android release workflow must verify its signing certificate fingerprint")
-    check("v1.1.4-android-arm64.apk" in release_workflow and "v1.1.4-windows-[bundle]" in release_workflow, "release artifact names must use v1.1.4")
+    check("v1.2.0-android-arm64.apk" in release_workflow and "v1.2.0-windows-[bundle]" in release_workflow, "release artifact names must use v1.2.0")
     check("python3 tools/patch_android.py --check" in release_workflow, "Android job must verify immersive mode and the short app label")
     check(release_workflow.index("npx tauri android init --ci") < release_workflow.index("tauri icon src-tauri/icons/icon-mobile.png"), "Android safe-area icons must be generated after android init")
     check("python3 tools/verify_android_package.py --generated" in release_workflow, "Android job must verify the generated axe icons")
@@ -257,11 +265,12 @@ def main() -> int:
     check(not (ROOT / ".github/workflows/android-build.yml").exists() and not (ROOT / ".github/workflows/windows-build.yml").exists(), "legacy duplicate build workflows must be removed")
     android_smoke = (ROOT / "tools/android_smoke_test.sh").read_text(encoding="utf-8")
     check("--screenshot release/android-intro.png" in android_smoke, "Android smoke test must reject a blank launch screen")
+    check("screen_height * 51 / 100" in android_smoke, "Android smoke test must tap the centered v1.2 start button")
     check("android-opening-1.png" in android_smoke and "black-transition->story3->main" in android_smoke and "--transition" in android_smoke, "Android smoke test must accept the designed blackout and reach the main game")
     check("com.google.android.apps.nexuslauncher" in android_smoke and "emulator system ANR dialog" in android_smoke, "Android smoke test must prevent launcher ANRs from covering the game")
     tauri_config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     check(tauri_config.get("bundle", {}).get("targets") == ["nsis"], "Windows bundle must avoid WiX and build the NSIS setup executable")
-    check(tauri_config.get("version") == "1.1.4", "Tauri version must be 1.1.4")
+    check(tauri_config.get("version") == "1.2.0", "Tauri version must be 1.2.0")
     check(tauri_config.get("identifier") == "com.isekailumberjack.game", "Windows must retain the existing application identifier")
     android_config = json.loads((ROOT / "src-tauri/tauri.android.conf.json").read_text(encoding="utf-8"))
     check(android_config.get("productName") == "이세계나무꾼", "Android launcher name must use the short Korean title")
