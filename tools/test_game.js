@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.2.1","centered intro logo hotfix app version");
+    assert.equal(game.constants.APP_VERSION,"1.2.2","crystal farming expansion app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -78,11 +78,11 @@ setTimeout(async()=>{
     assert.equal(game.constants.GEAR_CAPACITY,40,"combined inventory supports forty slots");
     assert.equal(game.constants.SECRET_EXCHANGE_INTERVAL_MS,6*60*60*1000,"secret exchange runs on six-hour windows");
     assert.equal(game.constants.SECRET_EXCHANGE_OFFER_COUNT,4,"each secret exchange window has four offers");
-    assert.deepEqual({...game.constants.GEAR_COST.axe[4]},{wood2:2000,gold2:2000});
-    assert.deepEqual({...game.constants.GEAR_COST.pickaxe[4]},{ore2:2000,gold2:2000});
-    assert.deepEqual({...game.constants.GEAR_COST.sword[4]},{wood2:2000,ore2:2000});
-    assert.deepEqual({...game.constants.GEAR_COST.rod[4]},{wood2:400,ore2:400,gold2:800});
-    assert.deepEqual({...game.constants.GEAR_COST.armor[4]},{wood2:800,ore2:800,gold2:400});
+    assert.deepEqual({...game.constants.GEAR_COST.axe[4]},{wood2:2000,gold2:2000,tome_wood:100});
+    assert.deepEqual({...game.constants.GEAR_COST.pickaxe[4]},{ore2:2000,gold2:2000,tome_ore:100});
+    assert.deepEqual({...game.constants.GEAR_COST.sword[4]},{wood2:2000,ore2:2000,tome_gold:100});
+    assert.deepEqual({...game.constants.GEAR_COST.rod[4]},{wood2:400,ore2:400,gold2:800,tome_wood:20,tome_ore:20,tome_gold:40});
+    assert.deepEqual({...game.constants.GEAR_COST.armor[4]},{wood2:800,ore2:800,gold2:400,tome_wood:40,tome_ore:40,tome_gold:20});
     assert.equal(game.compactXp(999),"999");assert.equal(game.compactXp(2345),"2k");assert.equal(game.compactXp(1234567),"1234k","XP keeps k notation above one million");
 
     state=game.freshState();game.replaceState(state);state.lv=90;const armor=state.gear.find(g=>g.type==="armor");armor.tier=4;armor.enh=4;
@@ -160,7 +160,7 @@ setTimeout(async()=>{
 
     state=game.freshState();game.replaceState(state);game.renderProfile();const shabbyCount=state.gear.length;await game.discardSelected();assert.equal(state.gear.length,shabbyCount,"shabby gear cannot be discarded");
 
-    state=game.freshState();game.replaceState(state);state.place="worldtree";state.hp=100000;state.target={hp:1,max:4444444,def:5000,xp:0};game.workAction(true,1000);
+    state=game.freshState();game.replaceState(state);state.place="worldtree";state.hp=100000;state.target={hp:1,max:10000000,def:20000,xp:0};game.workAction(true,1000);
     assert.equal(state.ended,true,"defeating world tree completes game");assert(state.hp<100000,"world tree reflects damage");
 
     game.renderWorkshop();assert.equal(element("overlayTitle").textContent,"제작소");assert(element("overlayContent").innerHTML.includes("제작하기"));
@@ -170,6 +170,8 @@ setTimeout(async()=>{
     game.renderProfile();assert(element("overlayContent").innerHTML.includes("/40"),"profile shows combined inventory capacity");
     game.setMenuOpen(true);assert(element("mainMenu").classList.contains("open"),"mobile menu expands on demand");assert(element("scene").classList.contains("menu-open"),"target HUD receives menu avoidance state");game.setMenuOpen(false);
     game.renderSettings();assert(!element("overlayContent").innerHTML.includes("지금 저장"),"manual save button is removed");assert(element("overlayContent").innerHTML.includes("자동 저장"));
+
+    await require("./test_v122_cases.js")({game,assert,element});
 
     const beforeSix=new Date(2026,8,7,5,59,59,0).getTime(),atSix=new Date(2026,8,7,6,0,0,0).getTime(),beforeNoon=new Date(2026,8,7,11,59,59,0).getTime(),atNoon=new Date(2026,8,7,12,0,0,0).getTime();
     assert.equal(game.secretWindowId(beforeSix),"2026-09-07-0","local time before 06:00 belongs to the midnight window");
@@ -200,6 +202,7 @@ setTimeout(async()=>{
     element("playScreen").classList.add("active");state.tutorialSeen=false;assert.equal(game.startNewUserGuide(),true);assert.equal(game.tutorialStage(),"menu");assert(element("newUserGuide").classList.contains("hidden")===false);assert(element("menuToggle").classList.contains("tutorial-highlight"));assert.equal(game.showTutorialMapStep(),true);assert.equal(game.tutorialStage(),"map");assert(element("mapMenuButton").classList.contains("tutorial-map-highlight"));assert.equal(game.finishNewUserGuide(),true);assert.equal(state.tutorialSeen,true);assert(element("newUserGuide").classList.contains("hidden"),"tutorial disappears permanently after choosing the map");
 
     game.replaceMeta({endingSeen:true});state=game.freshState();game.replaceState(state);assert(state.gear.some(g=>g.special),"future games include the permanent Easter egg");game.renderProfile();assert(element("overlayContent").innerHTML.includes("이스터에그"));
+    await game.flushSaveQueue();
     localStorage.setItem("isekai_lumberjack_save_v11","temporary ending save");const actions=element("endingActions");actions.classList.add("hidden");await game.finalizeEnding(actions);assert.equal(localStorage.getItem("isekai_lumberjack_save_v11"),null,"completed ending deletes ordinary save");assert.equal(JSON.parse(localStorage.getItem("isekai_lumberjack_meta")).endingSeen,true,"ending trophy flag persists separately");assert(!actions.classList.contains("hidden"),"ending actions appear after cleanup");
     console.log("game logic smoke tests: OK");
     process.exit(0);

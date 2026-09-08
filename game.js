@@ -1,7 +1,8 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.2.1";
+  const APP_VERSION = "1.2.2";
+  const MAX_LEVEL = 150;
   const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
   const META_KEY = "isekai_lumberjack_meta";
@@ -16,9 +17,12 @@
   const ENDING_ACTION_DELAY_MS = 5000;
   const SECRET_EXCHANGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
   const SECRET_EXCHANGE_OFFER_COUNT = 4;
-  const FINAL_BOSS = { hp: 4444444, def: 5000, reflectMin: 500, reflectMax: 1500 };
+  const FINAL_BOSS = { hp: 10000000, def: 20000, reflectMin: 75, reflectMax: 150 };
+  const TOP_REFLECTION = { min: 5, max: 20 };
   const TIERS = ["허름한", "쓸만한", "장인의", "영웅의", "신의"];
-  const GRADES = ["하급", "중급", "상급"];
+  const GRADES = ["하급", "중급", "상급", "최상급"];
+  const AREA_ASSET_GRADES = ["low", "mid", "high", "top"];
+  const TOME_LABEL = { wood: "목의 비의서", ore: "철의 비의서", gold: "금의 비의서" };
   const GEAR_LABEL = { axe: "도끼", pickaxe: "곡괭이", rod: "낚싯대", sword: "검", armor: "갑옷" };
   const WEAPON_POWER = [10, 20, 100, 700, 5000];
   const ARMOR_HP = [100, 200, 500, 1500, 5000];
@@ -32,14 +36,15 @@
     { min: 200, max: 400, def: 0, xp: 20 },
     { min: 1000, max: 2000, def: 200, xp: 100 },
     { min: 5000, max: 10000, def: 1000, xp: 1000 },
+    { min: 30000, max: 45000, def: 5000, xp: 10000 },
   ];
 
   const GEAR_COST = {
-    axe: [{}, {wood0:100}, {wood0:1000,gold0:1000,wood1:100,gold1:100}, {wood1:1000,gold1:1000,wood2:100,gold2:100}, {wood2:2000,gold2:2000}],
-    pickaxe: [{}, {ore0:100}, {ore0:1000,gold0:1000,ore1:100,gold1:100}, {ore1:1000,gold1:1000,ore2:100,wood2:100}, {ore2:2000,gold2:2000}],
-    sword: [{}, {wood0:50,ore0:50}, {wood0:1000,ore0:1000,wood1:100,ore1:100}, {wood1:1000,ore1:1000,wood2:100,ore2:100}, {wood2:2000,ore2:2000}],
-    rod: [{}, {wood0:20,ore0:20,gold0:40}, {wood0:200,ore0:200,gold0:400,wood1:20,ore1:20,gold1:40}, {wood1:200,ore1:200,gold1:400,wood2:20,ore2:20,gold2:40}, {wood2:400,ore2:400,gold2:800}],
-    armor: [{}, {wood0:40,ore0:40,gold0:20}, {wood0:400,ore0:400,gold0:200,wood1:40,ore1:40,gold1:20}, {wood1:400,ore1:400,gold1:200,wood2:40,ore2:40,gold2:20}, {wood2:800,ore2:800,gold2:400}],
+    axe: [{}, {wood0:100}, {wood0:1000,gold0:1000,wood1:100,gold1:100}, {wood1:1000,gold1:1000,wood2:100,gold2:100}, {wood2:2000,gold2:2000,tome_wood:100}],
+    pickaxe: [{}, {ore0:100}, {ore0:1000,gold0:1000,ore1:100,gold1:100}, {ore1:1000,gold1:1000,ore2:100,wood2:100}, {ore2:2000,gold2:2000,tome_ore:100}],
+    sword: [{}, {wood0:50,ore0:50}, {wood0:1000,ore0:1000,wood1:100,ore1:100}, {wood1:1000,ore1:1000,wood2:100,ore2:100}, {wood2:2000,ore2:2000,tome_gold:100}],
+    rod: [{}, {wood0:20,ore0:20,gold0:40}, {wood0:200,ore0:200,gold0:400,wood1:20,ore1:20,gold1:40}, {wood1:200,ore1:200,gold1:400,wood2:20,ore2:20,gold2:40}, {wood2:400,ore2:400,gold2:800,tome_wood:20,tome_ore:20,tome_gold:40}],
+    armor: [{}, {wood0:40,ore0:40,gold0:20}, {wood0:400,ore0:400,gold0:200,wood1:40,ore1:40,gold1:20}, {wood1:400,ore1:400,gold1:200,wood2:40,ore2:40,gold2:20}, {wood2:800,ore2:800,gold2:400,tome_wood:40,tome_ore:40,tome_gold:20}],
   };
 
   const HOUSES = [
@@ -135,6 +140,7 @@
     return {
       version: SAVE_VERSION, lv:1, xp:0, hp:500, place:"home", grade:0, auto:false, resting:false,
       rngSeed: (Date.now() >>> 0) || 1, res:{wood:[0,0,0],ore:[0,0,0],gold:[0,0,0]},
+      tomes:{wood:0,ore:0,gold:0},
       fish:Object.fromEntries(FISH.map(x=>[x,0])), stones:[0,0,0], houses:[true,false,false,false,false], house:0,
       gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foods:Array(RECIPES.length).fill(0), equippedFood:null, unseenGearIds:[], unseenFoodIndices:[], logs:[], target:null, fishState:null,
       restProgress:0, restElapsed:0, openingSeen:false, tutorialSeen:false, secretExchange:null, worldGateUnlocked:false, ended:false, lastSeen:Date.now(), lastVisit:Date.now(), settings:{bgm:.5,sfx:.5},
@@ -285,8 +291,8 @@
   function inventoryItemCount() { return S.gear.length+inventoryFoodKindCount(); }
   function foodCount(index) { return capped(S.foods?.[index]); }
   function foodIcon(index) { return `assets/foods/${RECIPES[index].icon}.png`; }
-  function resourceIcon(kind, grade) { return `assets/resources/${kind}_${["low","mid","high"][grade]}.png`; }
-  function stoneIcon(grade) { return `assets/resources/stone_${["low","mid","high"][grade]}.png`; }
+  function resourceIcon(kind, grade) { return `assets/resources/${kind}_${AREA_ASSET_GRADES[grade]}.png`; }
+  function stoneIcon(grade) { return `assets/resources/stone_${AREA_ASSET_GRADES[grade]}.png`; }
   function fishIcon(name) { return `assets/resources/${FISH_KEY[name]}.png`; }
   function capped(value) { return Math.max(0,Math.min(MAX_ITEM_COUNT,Math.floor(Number(value)||0))); }
   function compactXp(value) { const amount=Math.max(0,Math.floor(Number(value)||0));return amount>=1000?`${Math.floor(amount/1000)}k`:amount.toLocaleString(); }
@@ -309,6 +315,7 @@
     return !!S.worldGateUnlocked;
   }
   function normalizeInventory() {
+    S.tomes=Object.fromEntries(Object.keys(TOME_LABEL).map(kind=>[kind,capped(S.tomes?.[kind])]));
     for(const kind of ["wood","ore","gold"]) S.res[kind]=(S.res[kind]||[0,0,0]).map(capped);
     S.stones=(S.stones||[0,0,0]).map(capped);
     for(const name of FISH) S.fish[name]=capped(S.fish[name]);
@@ -336,18 +343,15 @@
   }
 
   function addXp(amount, at=Date.now()) {
-    if(S.lv>=100) return;
+    if(S.lv>=MAX_LEVEL) return;
     S.xp += amount;
-    while(S.lv<100 && S.xp>=needXp()) {
+    while(S.lv<MAX_LEVEL && S.xp>=needXp()) {
       S.xp -= needXp(); S.lv++;
       addLog(`레벨 ${S.lv} 달성!`,"assets/ui/energy.png","good",at);
       if (dom.play.classList.contains("active")) playSfx("level_up");
     }
-    if(S.lv>=100) {
-      S.xp=0; addLog("레벨 100 달성. 지도 하늘에서 귀환의 길이 열렸습니다.","assets/ui/map.png","rare",at);
-      if (dom.play.classList.contains("active")) playSfx("world_unlock");
-      refreshWorldGateUnlock();
-    }
+    if(S.lv>=MAX_LEVEL) S.xp=0;
+    refreshWorldGateUnlock(true);
   }
 
   function currentPlaceName() {
@@ -366,14 +370,14 @@
   function targetAsset() {
     if(S.place==="worldtree") return "assets/targets/worldtree.png";
     const kind=S.place==="forest"?"tree":S.place==="mine"?"ore":"monster";
-    return `assets/targets/${kind}_${["low","mid","high"][S.grade]}.png`;
+    return `assets/targets/${kind}_${AREA_ASSET_GRADES[S.grade]}.png`;
   }
 
   function targetLabel() {
     if(S.place==="worldtree") return "최종 세계수";
     if(S.place==="forest") return `${GRADES[S.grade]} 나무`;
     if(S.place==="mine") return `${GRADES[S.grade]} 광맥`;
-    return ["고블린","마물","드래곤"][S.grade];
+    return ["고블린","마물","드래곤","흑수정 드래곤"][S.grade];
   }
 
   function consumeFood(index,{automatic=false,simulated=false,at=Date.now()}={}) {
@@ -424,20 +428,36 @@
   function resourceDropGrade(areaGrade,roll) {
     if(areaGrade<=0)return 0;
     if(areaGrade===1)return roll<.35?1:0;
+    if(areaGrade===3)return 2;
     return roll<(20/55)?2:1;
+  }
+
+  // Shift the quantity distribution with target max HP, independently of item odds.
+  function rewardCount(min,max,hpRatio,roll=rand()) {
+    const ratio=Math.max(0,Math.min(1,hpRatio));
+    const center=min+Math.round(ratio*(max-min));
+    const spread=Math.max(1,Math.floor((max-min)/4));
+    return Math.max(min,Math.min(max,center+Math.floor(roll*(spread*2+1))-spread));
+  }
+
+  function topDropKind(roll) { return roll<.05?"tome":roll<.15?"stone":"resource"; }
+  function tomeIcon(kind) { return `assets/resources/tome_${kind}.png`; }
+  function dropTome(hpRatio,at,visual=true) {
+    const kind=PLACE_RESOURCE[S.place],count=rewardCount(1,3,hpRatio),icon=tomeIcon(kind);
+    S.tomes[kind]=capped(S.tomes[kind]+count);
+    addLog(`${TOME_LABEL[kind]} ${count}개 획득!`,icon,"rare",at);
+    if(visual){lootBurst(icon,count);playSfx("loot_rare");}
   }
 
   function dropResource(hpRatio, at, visual=true) {
     const kind=PLACE_RESOURCE[S.place]; let grade=0, count=1;
     if(S.grade===0) {
-      const center=1+Math.round(hpRatio*8);
-      count=Math.max(1,Math.min(10,center+Math.floor(rand()*5)-2));
-    } else if(S.grade===1) {
-      grade=resourceDropGrade(S.grade,rand());
-      count=grade===1?1+Math.floor(rand()*10):10+Math.floor(rand()*21);
+      count=rewardCount(1,10,hpRatio);
+    } else if(S.grade===3) {
+      grade=2;count=rewardCount(5,15,hpRatio);
     } else {
       grade=resourceDropGrade(S.grade,rand());
-      count=grade===2?1+Math.floor(rand()*10):10+Math.floor(rand()*21);
+      count=grade===S.grade?rewardCount(1,10,hpRatio):rewardCount(5,15,hpRatio);
     }
     S.res[kind][grade]=capped(S.res[kind][grade]+count);
     const icon=resourceIcon(kind,grade);
@@ -448,10 +468,27 @@
   function defeatTarget(at=Date.now(), visual=true) {
     const hpRatio=(S.target.max-TARGET_STATS[S.grade].min)/(TARGET_STATS[S.grade].max-TARGET_STATS[S.grade].min);
     addXp(S.target.xp,at);
-    const stoneGrade=stoneDropGradeForPlace(S.place,S.grade,rand());
-    if(stoneGrade!==null) dropStone(stoneGrade,at,visual); else dropResource(hpRatio,at,visual);
+    if(S.grade===3){
+      const drop=topDropKind(rand());
+      if(drop==="tome")dropTome(hpRatio,at,visual);
+      else if(drop==="stone")dropStone(2,at,visual);
+      else dropResource(hpRatio,at,visual);
+    } else {
+      const stoneGrade=stoneDropGradeForPlace(S.place,S.grade,rand());
+      if(stoneGrade!==null) dropStone(stoneGrade,at,visual); else dropResource(hpRatio,at,visual);
+    }
     if(visual) playSfx(S.place==="forest"?"tree_break":S.place==="mine"?"ore_break":"monster_defeat");
     newTarget();
+  }
+
+  function reflectDamage(min,max,simulated,at) {
+    const reflected=randNorm(min,max);
+    S.hp=Math.max(0,S.hp-reflected);
+    if(!simulated){
+      addLog(`${S.place==="worldtree"?"세계수":"흑수정"}의 반사 피해 ${reflected.toLocaleString()}.`,"assets/ui/energy.png","warn",at);
+      setTimeout(animateReflection,150);
+    }
+    if(S.hp<=0)handleExhaustion(simulated,at);
   }
 
   function workAction(simulated=false, at=Date.now()) {
@@ -466,19 +503,16 @@
     S.target.hp-=damage;
     if(!simulated) animateAction();
     if(S.place==="worldtree") {
-      const reflected=randNorm(FINAL_BOSS.reflectMin,FINAL_BOSS.reflectMax);
-      S.hp=Math.max(0,S.hp-reflected);
-      if(!simulated) {
-        addLog(`세계수의 반사 피해 ${reflected.toLocaleString()}.`,"assets/ui/energy.png","warn",at);
-        setTimeout(animateReflection,150);
-      }
-      if(S.hp<=0)handleExhaustion(simulated,at);
+      reflectDamage(FINAL_BOSS.reflectMin,FINAL_BOSS.reflectMax,simulated,at);
       if(S.target.hp<=0) {
         S.target.hp=0; S.auto=false; S.ended=true;
         addLog("칠흑의 세계수를 베어 쓰러뜨렸습니다.","assets/targets/worldtree.png","rare",at);
         if(!simulated) { playSfx("tree_break"); persist(); setTimeout(startEnding,850); }
       }
-    } else if(S.target.hp<=0) defeatTarget(at,!simulated);
+    } else {
+      if(S.grade===3)reflectDamage(TOP_REFLECTION.min,TOP_REFLECTION.max,simulated,at);
+      if(S.target.hp<=0)defeatTarget(at,!simulated);
+    }
     if(!simulated) { render(); persist(); }
   }
 
@@ -695,6 +729,7 @@
     dom.scene.style.backgroundImage=`url("assets/bg/${bg}")`;
     dom.placeTitle.textContent=currentPlaceName();
     dom.scene.classList.toggle("worldtree-scene",S.place==="worldtree");
+    dom.scene.classList.toggle("crystal-scene",S.grade===3&&["forest","mine","dungeon"].includes(S.place));
     const hasTarget=["forest","mine","dungeon","worldtree"].includes(S.place);
     dom.targetArea.classList.toggle("hidden",!hasTarget);dom.targetHud.classList.toggle("hidden",!hasTarget);
     dom.bobber.classList.add("hidden"); dom.fishingLine.classList.add("hidden"); dom.fishingStatus.classList.add("hidden"); dom.character.classList.remove("fishing","casting","waiting","lifting","rewarding");
@@ -726,7 +761,7 @@
     const hpMax=maxHp(),hpNow=Math.max(0,Math.floor(S.hp)),hpPercent=Math.max(0,Math.min(100,hpNow/hpMax*100));
     dom.level.textContent=`Lv.${S.lv}`; dom.hp.textContent=`${hpNow.toLocaleString()} / ${hpMax.toLocaleString()}`;dom.hpFill.style.width=`${hpPercent}%`;dom.hpMeter.setAttribute("aria-valuemax",String(hpMax));dom.hpMeter.setAttribute("aria-valuenow",String(hpNow));
     dom.attack.textContent=totalAttack().toLocaleString(); dom.place.textContent=currentPlaceName();
-    dom.xpFill.style.width=`${S.lv>=100?100:S.xp/needXp()*100}%`; dom.xpText.textContent=S.lv>=100?"MAX":`${compactXp(S.xp)} / ${compactXp(needXp())}`;
+    dom.xpFill.style.width=`${S.lv>=MAX_LEVEL?100:S.xp/needXp()*100}%`; dom.xpText.textContent=S.lv>=MAX_LEVEL?"MAX":`${compactXp(S.xp)} / ${compactXp(needXp())}`;
     const gearSlots=Object.keys(GEAR_LABEL).map(type=>{
       const g=equipped(type); return g?`<div class="equip-slot" title="${TIERS[g.tier]} ${GEAR_LABEL[type]}"><img src="${gearIcon(g)}" alt="${GEAR_LABEL[type]}"><small>${GEAR_LABEL[type]}</small>${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div>`:`<div class="equip-slot empty"><small>${GEAR_LABEL[type]} 없음</small></div>`;
     }).join("");
@@ -771,11 +806,22 @@
   }
 
   function costValue(key) {
+    if(key.startsWith("tome_"))return capped(S.tomes?.[key.slice(5)]);
     const match=key.match(/(wood|ore|gold)(\d)/); return match ? S.res[match[1]][+match[2]] : 0;
   }
   function canPay(cost) { return Object.entries(cost).every(([key,value])=>costValue(key)>=value); }
-  function pay(cost) { if(!canPay(cost)) return false; for(const[key,value] of Object.entries(cost)){const m=key.match(/(wood|ore|gold)(\d)/);S.res[m[1]][+m[2]]-=value;} return true; }
-  function costMeta(key) { const m=key.match(/(wood|ore|gold)(\d)/); return {kind:m[1],grade:+m[2],name:`${GRADES[+m[2]]} ${RESOURCE_LABEL[m[1]]}`,icon:resourceIcon(m[1],+m[2])}; }
+  function pay(cost) {
+    if(!canPay(cost))return false;
+    for(const[key,value]of Object.entries(cost)){
+      if(key.startsWith("tome_")){S.tomes[key.slice(5)]-=value;continue;}
+      const m=key.match(/(wood|ore|gold)(\d)/);S.res[m[1]][+m[2]]-=value;
+    }
+    return true;
+  }
+  function costMeta(key) {
+    if(key.startsWith("tome_")){const kind=key.slice(5);return {kind,name:TOME_LABEL[kind],icon:tomeIcon(kind)};}
+    const m=key.match(/(wood|ore|gold)(\d)/); return {kind:m[1],grade:+m[2],name:`${GRADES[+m[2]]} ${RESOURCE_LABEL[m[1]]}`,icon:resourceIcon(m[1],+m[2])};
+  }
 
   function secretItemMeta(key) {
     let match=String(key).match(/^(wood|ore|gold)([0-2])$/);
@@ -840,6 +886,7 @@
     const cards=[];
     for(const kind of ["wood","ore","gold"]) for(let grade=0;grade<3;grade++) cards.push(`<div class="wallet-card"><img src="${resourceIcon(kind,grade)}" alt=""><span>${GRADES[grade]} ${RESOURCE_LABEL[kind]}<b>${S.res[kind][grade].toLocaleString()}</b></span></div>`);
     for(let grade=0;grade<3;grade++) cards.push(`<div class="wallet-card"><img src="${stoneIcon(grade)}" alt=""><span>${GRADES[grade]} 강화돌<b>${S.stones[grade].toLocaleString()}</b></span></div>`);
+    for(const kind of Object.keys(TOME_LABEL))cards.push(`<div class="wallet-card tome-card"><img src="${tomeIcon(kind)}" alt=""><span>${TOME_LABEL[kind]}<b>${capped(S.tomes?.[kind]).toLocaleString()}</b></span></div>`);
     return `<div class="resource-wallet">${cards.join("")}</div>`;
   }
 
@@ -876,7 +923,7 @@
 
   function renderTier({place}) {
     setOverlayHeader(`${PLACE_LABEL[place]} 선택`,"등급이 높을수록 강한 장비가 필요합니다");
-    dom.overlayContent.innerHTML=`<div class="tier-grid">${[0,1,2].map(grade=>`<button class="tier-option ${["low","mid","high"][grade]}" data-do="travel" data-place="${place}" data-grade="${grade}"><img src="assets/targets/${place==="forest"?"tree":place==="mine"?"ore":"monster"}_${["low","mid","high"][grade]}.png" alt=""><span><strong>${GRADES[grade]} ${PLACE_LABEL[place]}</strong><small>HP ${TARGET_STATS[grade].min.toLocaleString()}~${TARGET_STATS[grade].max.toLocaleString()} · 방어력 ${TARGET_STATS[grade].def.toLocaleString()} · EXP ${compactXp(TARGET_STATS[grade].xp)}</small></span></button>`).join("")}</div>`;
+    dom.overlayContent.innerHTML=`<div class="tier-grid">${[0,1,2,3].map(grade=>`<button class="tier-option ${AREA_ASSET_GRADES[grade]}" data-do="travel" data-place="${place}" data-grade="${grade}"><img src="assets/targets/${place==="forest"?"tree":place==="mine"?"ore":"monster"}_${AREA_ASSET_GRADES[grade]}.png" alt=""><span><strong>${GRADES[grade]} ${PLACE_LABEL[place]}</strong><small>HP ${TARGET_STATS[grade].min.toLocaleString()}~${TARGET_STATS[grade].max.toLocaleString()} · 방어력 ${TARGET_STATS[grade].def.toLocaleString()} · EXP ${compactXp(TARGET_STATS[grade].xp)}${grade===3?" · 반사 피해 5~20":""}</small></span></button>`).join("")}</div>`;
   }
 
   function renderWorkshop() {
@@ -1211,6 +1258,14 @@
     history.replaceState({gameRoot:true},"");history.pushState({gameGuard:true},"");window.addEventListener("popstate",()=>{logicalBack();history.pushState({gameGuard:true},"");});
   }
 
+  function migrateBalance() {
+    // Keep an unfinished saved boss fight at the same health percentage.
+    if(S.place==="worldtree"&&!S.ended&&S.target&&(S.target.max!==FINAL_BOSS.hp||S.target.def!==FINAL_BOSS.def)){
+      const ratio=Math.max(0,Math.min(1,S.target.hp/S.target.max));
+      S.target={hp:Math.ceil(ratio*FINAL_BOSS.hp),max:FINAL_BOSS.hp,def:FINAL_BOSS.def,xp:0};
+    }
+  }
+
   async function init() {
     const metaRaw=await storage.loadMeta();
     if(metaRaw){try{const parsed=JSON.parse(metaRaw);M={endingSeen:!!parsed.endingSeen};}catch(error){M={endingSeen:false};}}
@@ -1219,7 +1274,7 @@
       try{const parsed=JSON.parse(raw);if(parsed.version===SAVE_VERSION)S=parsed;else{resetNotice=`업데이트 ${APP_VERSION} 적용으로 이전 세이브가 초기화되었습니다.`;await storage.remove();S=freshState();}}
       catch(error){resetNotice="손상된 세이브를 초기화했습니다.";S=freshState();}
     } else S=freshState();
-    S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;if(typeof S.tutorialSeen!=="boolean")S.tutorialSeen=!!S.openingSeen;S.secretExchange=S.secretExchange||null;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();refreshWorldGateUnlock();ensureSecretExchange(Date.now(),false);
+    S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;if(typeof S.tutorialSeen!=="boolean")S.tutorialSeen=!!S.openingSeen;S.secretExchange=S.secretExchange||null;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();migrateBalance();refreshWorldGateUnlock();ensureSecretExchange(Date.now(),false);
     if(M.endingSeen&&!S.gear.some(g=>g.special))S.gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
     if(!S.logs.length)addLog("이세계에서 눈을 떴습니다.");
     bindEvents();renderIntro();showScreen("intro");
@@ -1230,6 +1285,7 @@
       state: () => S,
       meta: () => M,
       replaceState: (next) => { S = next; },
+      flushSaveQueue: () => saveQueue,
       replaceMeta: (next) => { M = next; },
       freshState,
       maxHp,
@@ -1252,6 +1308,9 @@
       stoneDropGrade,
       stoneDropGradeForPlace,
       resourceDropGrade,
+      rewardCount, topDropKind, dropResource, defeatTarget, newTarget, targetAsset, targetLabel,
+      addXp, needXp, renderTier, renderMap, walletHtml, canPay, pay, costMeta,
+      migrateBalance, init,
       compactXp,
       weightedIndex,
       totalAttack,
@@ -1300,7 +1359,7 @@
       startEnding,
       finalizeEnding,
       setMenuOpen,
-      constants:{APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES,SECRET_EXCHANGE_INTERVAL_MS,SECRET_EXCHANGE_OFFER_COUNT,SECRET_EXCHANGE_TEMPLATES},
+      constants:{MAX_LEVEL,TARGET_STATS,TOP_REFLECTION,TOME_LABEL,APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES,SECRET_EXCHANGE_INTERVAL_MS,SECRET_EXCHANGE_OFFER_COUNT,SECRET_EXCHANGE_TEMPLATES},
     };
   }
 

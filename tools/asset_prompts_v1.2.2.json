@@ -1,0 +1,51 @@
+{
+  "generator": "built-in image_gen",
+  "runtimeTargets": "512px transparent targets / 256px transparent materials / 1024x1536 backgrounds",
+  "assets": [
+    {
+      "path": "assets/targets/monster_top.png",
+      "reference": "assets/targets/monster_high.png",
+      "prompt": "Make a TRANSPARENT PNG GAME SPRITE with real alpha transparency. Transform the existing red dragon into a menacing black smoky-quartz dragon with black faceted armor, silver-violet crystals, pale lavender eyes and lavender wing membranes. Keep full body, spread wings and aggressive pose and same detailed PIXEL ART style. Center with transparent margin. No background, text or checkerboard."
+    },
+    {
+      "path": "assets/targets/tree_top.png",
+      "reference": "assets/targets/tree_high.png",
+      "prompt": "Create a new top-tier harvest tree sprite for the same Korean pixel-art fantasy idle RPG as the reference. Keep the detailed textured pixel-art style and compact full-tree silhouette. A mineralized BLACK CRYSTAL tree, smoky graphite quartz bark, crystalline branches and dense clusters of translucent gray-lavender faceted crystal leaves with tiny cold silver/cyan glints. Clearly a harvestable tree, not a demon, not the final world tree, no face, no crimson glow. Mysterious eerie natural mineral object. Entire tree and modest roots visible centered with 6% padding. Square 1024x1024 truly transparent background, no landscape/floor, no text or border."
+    },
+    {
+      "path": "assets/targets/ore_top.png",
+      "reference": "assets/targets/ore_high.png",
+      "prompt": "Create a new top-tier ore deposit sprite matching the reference Korean RPG pixel-art style. A huge rugged cluster of BLACK SMOKY QUARTZ crystals growing out of graphite ore rocks, sharp translucent black-gray crystal facets with cold silver and subdued lavender/cyan specular edges. More formidable and eerie than the reference, avoid rainbow/gold bright colors. Entire compact ore cluster visible, centered, 8% padding. Highly detailed clean pixel-art illustration suitable as mine target. Square 1024x1024, truly transparent background, no landscape, no text, no border."
+    },
+    {
+      "path": "assets/bg/forest4.png",
+      "reference": "assets/bg/forest3.png",
+      "prompt": "Create a new top-tier forest background for the Korean pixel-art idle RPG matching reference composition and detailed pixel-art painting. Portrait 1024x1536. Eerie mysterious haunted BLACK CRYSTAL forest: graphite crystal-veined trunks framing both sides, mineralized gray lavender foliage, smoky quartz clusters lining a winding forest path, thin pale mist, cold moonlit cyan and silver facet reflections. Dark and unsettling but readable, emphasize translucent faceted CRYSTAL not pitch-black void. No huge central tree, no boss metaphor, no creatures, no characters, no UI/text. Leave the middle and lower central 60% as uncluttered open ground for game sprites. Atmospheric depth, rich minute pixel detail."
+    },
+    {
+      "path": "assets/bg/mine4.png",
+      "reference": "assets/bg/forest3.png",
+      "prompt": "Create a new top-tier MINE background for a Korean pixel-art fantasy idle RPG, matching the reference's detailed pixel-art painting quality and portrait framing, but replace forest with deep abandoned smoky quartz mine. Portrait 1024x1536. Towering faceted BLACK CRYSTAL veins in slate-gray cavern walls, broken timber supports at sides, distant tunnel receding through pale silver mist, abandoned track fragments along edges. Graphite, gray-violet, tiny cold cyan crystal light; eerie, mysterious and ominous but readable, not pitch black. Leave center and lower central 60% clear flat stony ground for overlay game sprites. No people, monsters, giant tree, glowing portal, text or UI."
+    },
+    {
+      "path": "assets/bg/dungeon4.png",
+      "reference": "assets/bg/dungeon3.png",
+      "prompt": "Create a new top-tier dungeon background matching reference detailed pixel-art Korean fantasy RPG style, vertical 1024x1536. Ancient ominous abandoned BLACK CRYSTAL citadel hall. Ruined Gothic columns fused with faceted smoky quartz, crystal ribs, silver-lavender mineral reflections, frosty pale mist and a distant shattered archway. Replace red fire, red banners and purple lava with cold graphite gray, muted lavender and silver cyan light. Dark, eerie and frightening but clearly crystalline and readable, never a pitch-black world-tree cave. No central boss, dragon, character, tree, UI, symbols or text. Keep middle and lower central 60% open tiled stone floor for game actors. Strong spatial depth and detailed pixel-art texture."
+    },
+    {
+      "path": "assets/resources/tome_wood.png",
+      "reference": "assets/resources/wood_high.png",
+      "prompt": "Game inventory icon for a Korean fantasy pixel-art RPG, detailed crisp pixel illustration matching the material reference. One ancient closed wooden-bound secret grimoire, thick parchment pages, dark carved timber cover with silver corner ornaments, central glowing pale teal LEAF and branching TREE motif (pictorial emblem, no letters), small smoky quartz clasp. Named wood secret tome in game, but NO text in image. Square 1024x1024, centered three-quarter view, compact readable silhouette with 12% padding, genuinely transparent background, no ground or drop-shadow outside icon. Rich tactile texture, clear when resized to 256 pixels."
+    },
+    {
+      "path": "assets/resources/tome_ore.png",
+      "reference": "assets/resources/ore_high.png",
+      "prompt": "Game inventory icon for a Korean fantasy pixel-art RPG, detailed crisp pixel illustration matching material reference. One ancient closed iron-bound secret grimoire, thick parchment pages, graphite metal cover, cold silver reinforced corners, central steel ANVIL and small faceted iron crystal pictorial emblem with pale blue glow (no letters), smoky quartz clasp. Named iron secret tome in game but NO text. Square 1024x1024 centered three-quarter view, compact readable silhouette with 12% padding, genuinely transparent background, no ground or outside shadow. Rich tactile texture, clear at 256 pixels."
+    },
+    {
+      "path": "assets/resources/tome_gold.png",
+      "reference": "assets/resources/gold_high.png",
+      "prompt": "Game inventory icon for a Korean fantasy pixel-art RPG, detailed crisp pixel illustration matching the reference material style. One ancient closed gold-bound secret grimoire, thick parchment pages, dark charcoal leather cover with ornate antique GOLD filigree corners, central gold COIN and ingot pictorial emblem (no letters) with warm gold glow, smoky quartz clasp. Named gold secret tome in game but NO text. Square 1024x1024 centered three-quarter view, compact readable silhouette with 12% padding, genuinely transparent background, no ground or outside shadow. Rich tactile texture, clear when resized to 256 pixels."
+    }
+  ]
+}

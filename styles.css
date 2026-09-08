@@ -261,3 +261,10 @@ img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }
   .equipped-grid { margin-top: 5px; }
   .character { bottom: -11%; }
 }
+
+/* v1.2.2 smoky-quartz farming areas */
+.tier-option.top { border-color: #8e88a8; background: linear-gradient(125deg,#24212e,#131720); box-shadow: inset 0 0 18px #aea0e116; }
+.tier-option.top strong { color: #d5d0eb; }
+.crystal-scene .place-title, .crystal-scene .target-hud { border-color: #aaa0c5aa; background: #171521eb; }
+.crystal-scene .target-image { filter: drop-shadow(0 8px 9px #000b) drop-shadow(0 0 6px #b0a0d033); }
+.tome-card { border-color: #756781; background: #211c2a; }
