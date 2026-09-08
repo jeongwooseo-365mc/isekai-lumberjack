@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.2.2";
+  const APP_VERSION = "1.2.3";
   const MAX_LEVEL = 150;
   const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
@@ -457,7 +457,7 @@
       grade=2;count=rewardCount(5,15,hpRatio);
     } else {
       grade=resourceDropGrade(S.grade,rand());
-      count=grade===S.grade?rewardCount(1,10,hpRatio):rewardCount(5,15,hpRatio);
+      count=grade===S.grade?rewardCount(1,10,hpRatio):rewardCount(15,45,hpRatio);
     }
     S.res[kind][grade]=capped(S.res[kind][grade]+count);
     const icon=resourceIcon(kind,grade);

@@ -40,7 +40,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
   assert.deepEqual(categories,{tome:500,stone:1000,resource:8500});
   assert.equal(game.topDropKind(.05),"stone");assert.equal(game.topDropKind(.15),"resource");
 
-  for(const [min,max]of [[1,10],[5,15],[1,3]]){
+  for(const [min,max]of [[1,10],[5,15],[15,45],[1,3]]){
     let low=0,high=0;
     for(let i=0;i<1000;i++){
       const roll=(i+.5)/1000;
@@ -81,7 +81,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
       const entries=state.res.wood.map((count,index)=>({count,index})).filter(x=>x.count);
       assert.equal(entries.length,1);const{count,index}=entries[0];
       if(index===grade){same++;assert(count>=1&&count<=10);}
-      else {lower++;assert.equal(index,grade-1);assert(count>=5&&count<=15);}
+      else {lower++;assert.equal(index,grade-1);assert(count>=15&&count<=45);}
     }
     assert(same>0);if(grade>0)assert(lower>0);
   }
