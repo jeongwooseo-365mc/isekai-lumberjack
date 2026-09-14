@@ -25,13 +25,15 @@ const server=http.createServer((req,res)=>{
       await page.goto(url);await page.waitForFunction(()=>window.__GAME_DEBUG__?.state());
       // Seed a representative pre-patch save, then exercise the real startup loader.
       await page.evaluate(()=>{
-        const g=window.__GAME_DEBUG__,s=g.freshState();delete s.tomes;
+        const g=window.__GAME_DEBUG__,s=g.freshState();delete s.tomes;delete s.runId;
+        localStorage.setItem("isekai_lumberjack_meta",JSON.stringify({endingSeen:true}));
         s.lv=100;s.hp=3000;s.openingSeen=true;s.tutorialSeen=true;s.res.wood[2]=4321;
         s.gear[0].tier=4;s.gear[0].enh=7;
         g.replaceState(s);
         localStorage.setItem(g.constants.SAVE_KEY,JSON.stringify(s));
       });
       await page.reload();await page.waitForFunction(()=>window.__GAME_DEBUG__?.state()?.lv===100);
+      assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.endingCount()),1);
       assert.deepEqual(await page.evaluate(()=>({...window.__GAME_DEBUG__.state().tomes})),{wood:0,ore:0,gold:0});
       assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().res.wood[2]),4321);
       await page.getByRole("button",{name:"게임 시작",exact:true}).click();
@@ -70,9 +72,39 @@ const server=http.createServer((req,res)=>{
       await page.evaluate(()=>window.__GAME_DEBUG__.flushSaveQueue());
       await page.reload();await page.waitForFunction(()=>window.__GAME_DEBUG__?.state()?.tomes?.wood===80);
       assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().gear[0].enh),7);
+      await page.getByRole("button",{name:"게임 시작",exact:true}).click();
+      await page.evaluate(()=>{
+        const g=window.__GAME_DEBUG__,s=g.state();g.startFinalBattle();
+        for(const [type,enh]of [["axe",4],["pickaxe",3],["sword",5]]){const item=s.gear.find(i=>i.id===s.equipped[type]);item.tier=3;item.enh=enh;}
+        g.render();
+      });
+      assert(await page.locator("#autoButton").isDisabled());
+      assert((await page.locator("#character").getAttribute("src")).endsWith("/sword/idle.png"));
+      await page.locator("#scene").click({position:{x:180,y:250}});
+      await page.waitForTimeout(300);
+      assert(await page.evaluate(()=>window.__GAME_DEBUG__.state().target.hp<10000000));
+      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state();s.gear.find(i=>i.id===s.equipped.pickaxe).enh=6;g.render();});
+      assert((await page.locator("#character").getAttribute("src")).endsWith("/pickaxe/idle.png"));
+      await page.screenshot({path:path.join(out,`boss-manual-${width}x${height}.png`)});
+      // Reload a legacy auto-ON boss save: no time or HP may be consumed.
+      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state();s.auto=true;s.lastSeen=Date.now()-60000;localStorage.setItem(g.constants.SAVE_KEY,JSON.stringify(s));});
+      await page.reload();await page.waitForFunction(()=>window.__GAME_DEBUG__?.state()?.place==="worldtree");
+      assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().auto),false);
+      const hpBefore=await page.evaluate(()=>window.__GAME_DEBUG__.state().target.hp);
+      await page.getByRole("button",{name:"게임 시작",exact:true}).click();await page.waitForTimeout(1100);
+      assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().target.hp),hpBefore);
+      await page.evaluate(()=>{const g=window.__GAME_DEBUG__;g.replaceMeta({endingSeen:true,endingCount:12});g.returnToIntroAfterEnding();g.renderProfile();});
+      await page.getByRole("button",{name:"게임 시작",exact:true}).click();
+      // Skip only the new-game opening in this UI fixture and inspect the profile stack.
+      await page.evaluate(()=>{const g=window.__GAME_DEBUG__;g.state().openingSeen=true;g.state().tutorialSeen=true;g.startFinalBattle();});
+      await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
+      await page.getByRole("button",{name:"마이페이지",exact:true}).click();
+      assert.equal(await page.locator('[data-id="easter_egg"] .food-stack').innerText(),"x12");
+      await page.locator('[data-id="easter_egg"]').scrollIntoViewIfNeeded();
+      await page.screenshot({path:path.join(out,`trophy-count-${width}x${height}.png`)});
       await context.close();
     }
-    assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload\n");
-    console.log("Browser v1.2.2 QA: PASS");
+    assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, manual boss, strongest equipped weapon, trophy stack\n");
+    console.log("Browser v1.2.4 QA: PASS");
   }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});

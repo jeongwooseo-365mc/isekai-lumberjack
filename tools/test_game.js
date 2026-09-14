@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.2.3","crystal farming expansion app version");
+    assert.equal(game.constants.APP_VERSION,"1.2.4","crystal farming expansion app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -204,6 +204,7 @@ setTimeout(async()=>{
     game.replaceMeta({endingSeen:true});state=game.freshState();game.replaceState(state);assert(state.gear.some(g=>g.special),"future games include the permanent Easter egg");game.renderProfile();assert(element("overlayContent").innerHTML.includes("이스터에그"));
     await game.flushSaveQueue();
     localStorage.setItem("isekai_lumberjack_save_v11","temporary ending save");const actions=element("endingActions");actions.classList.add("hidden");await game.finalizeEnding(actions);assert.equal(localStorage.getItem("isekai_lumberjack_save_v11"),null,"completed ending deletes ordinary save");assert.equal(JSON.parse(localStorage.getItem("isekai_lumberjack_meta")).endingSeen,true,"ending trophy flag persists separately");assert(!actions.classList.contains("hidden"),"ending actions appear after cleanup");
+    await require("./test_v124_cases")({game,element,localStorage,assert});
     console.log("game logic smoke tests: OK");
     process.exit(0);
   } catch(error) { console.error(error.stack||error); process.exit(1); }

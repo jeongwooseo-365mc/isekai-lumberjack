@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.2.3";
+  const APP_VERSION = "1.2.4";
   const MAX_LEVEL = 150;
   const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
@@ -14,7 +14,7 @@
   const ENDING_SCENE_MS = 10000;
   const ENDING_CREDITS_DELAY_MS = 3000;
   const ENDING_CREDITS_MS = 38000;
-  const ENDING_ACTION_DELAY_MS = 5000;
+  const ENDING_ACTION_DELAY_MS = 0;
   const SECRET_EXCHANGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
   const SECRET_EXCHANGE_OFFER_COUNT = 4;
   const FINAL_BOSS = { hp: 10000000, def: 20000, reflectMin: 75, reflectMax: 150 };
@@ -41,7 +41,7 @@
 
   const GEAR_COST = {
     axe: [{}, {wood0:100}, {wood0:1000,gold0:1000,wood1:100,gold1:100}, {wood1:1000,gold1:1000,wood2:100,gold2:100}, {wood2:2000,gold2:2000,tome_wood:100}],
-    pickaxe: [{}, {ore0:100}, {ore0:1000,gold0:1000,ore1:100,gold1:100}, {ore1:1000,gold1:1000,ore2:100,wood2:100}, {ore2:2000,gold2:2000,tome_ore:100}],
+    pickaxe: [{}, {ore0:100}, {ore0:1000,gold0:1000,ore1:100,gold1:100}, {ore1:1000,gold1:1000,ore2:100,gold2:100}, {ore2:2000,gold2:2000,tome_ore:100}],
     sword: [{}, {wood0:50,ore0:50}, {wood0:1000,ore0:1000,wood1:100,ore1:100}, {wood1:1000,ore1:1000,wood2:100,ore2:100}, {wood2:2000,ore2:2000,tome_gold:100}],
     rod: [{}, {wood0:20,ore0:20,gold0:40}, {wood0:200,ore0:200,gold0:400,wood1:20,ore1:20,gold1:40}, {wood1:200,ore1:200,gold1:400,wood2:20,ore2:20,gold2:40}, {wood2:400,ore2:400,gold2:800,tome_wood:20,tome_ore:20,tome_gold:40}],
     armor: [{}, {wood0:40,ore0:40,gold0:20}, {wood0:400,ore0:400,gold0:200,wood1:40,ore1:40,gold1:20}, {wood1:400,ore1:400,gold1:200,wood2:40,ore2:40,gold2:20}, {wood2:800,ore2:800,gold2:400,tome_wood:40,tome_ore:40,tome_gold:20}],
@@ -102,7 +102,7 @@
   };
 
   let S;
-  let M = { endingSeen:false };
+  let M = { endingSeen:false, endingCount:0, lastEndingId:null };
   let saveQueue = Promise.resolve();
   let secondTimer = null;
   let fishTimer = null;
@@ -119,6 +119,7 @@
   let enhancing = false;
   let crafting = false;
   let saveClearedAfterEnding = false;
+  let endingFinalization = null;
   let lastBackAt = 0;
   let resetNotice = "";
   let bgm = null;
@@ -134,11 +135,15 @@
 
   function newId(prefix="g") { return `${prefix}_${Date.now().toString(36)}_${Math.floor(Math.random()*1e9).toString(36)}`; }
 
+  function endingCount() {
+    return Math.max(M.endingSeen?1:0,Number.isSafeInteger(M.endingCount)?M.endingCount:0);
+  }
+
   function freshState() {
     const gear = Object.keys(GEAR_LABEL).map((type, i) => ({ id:`starter_${type}_${i}`, type, tier:0, enh:0 }));
-    if(M.endingSeen) gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
+    if(endingCount()>0) gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
     return {
-      version: SAVE_VERSION, lv:1, xp:0, hp:500, place:"home", grade:0, auto:false, resting:false,
+      version: SAVE_VERSION, runId:newId("run"), lv:1, xp:0, hp:500, place:"home", grade:0, auto:false, resting:false,
       rngSeed: (Date.now() >>> 0) || 1, res:{wood:[0,0,0],ore:[0,0,0],gold:[0,0,0]},
       tomes:{wood:0,ore:0,gold:0},
       fish:Object.fromEntries(FISH.map(x=>[x,0])), stones:[0,0,0], houses:[true,false,false,false,false], house:0,
@@ -181,8 +186,6 @@
     saveQueue = saveQueue.then(() => storage.write(snapshot)).catch(error => console.warn("save failed", error));
     return saveQueue;
   }
-
-  function persistMeta() { return storage.writeMeta(JSON.stringify(M)).catch(error=>console.warn("meta save failed",error)); }
 
   function rand() {
     S.rngSeed = (Math.imul(1664525, S.rngSeed >>> 0) + 1013904223) >>> 0;
@@ -281,7 +284,10 @@
   }
 
   function maxHp() { return baseMaxHp() + gearPower(equipped("armor")); }
-  function currentWeaponType() { return S.place==="forest"||S.place==="worldtree"?"axe":S.place==="mine"?"pickaxe":S.place==="dungeon"?"sword":null; }
+  function currentWeaponType() {
+    if(S.place==="worldtree") return ["axe","pickaxe","sword"].reduce((best,type)=>gearPower(equipped(type))>gearPower(equipped(best))?type:best,"axe");
+    return S.place==="forest"?"axe":S.place==="mine"?"pickaxe":S.place==="dungeon"?"sword":null;
+  }
   function totalAttack() { const type=currentWeaponType(); return baseAttack() + (type ? gearPower(equipped(type)) : 0); }
   function needXp(level=S.lv) { return Math.round(100*Math.pow(1.1,level-1)); }
   function gearIcon(g) { return g?.special?"assets/items/easter_egg.png":`assets/items/${g.type}_${g.tier}.png`; }
@@ -555,6 +561,7 @@
   }
 
   function settleOffline(now=Date.now()) {
+    if(S.place==="worldtree")S.auto=false;
     const from=Number(S.lastSeen)||now;
     const elapsed=Math.max(0,Math.floor((now-from)/1000));
     if(elapsed<=0) { if(!Number.isFinite(Number(S.lastSeen)))S.lastSeen=now; return 0; }
@@ -577,7 +584,7 @@
           startFishing(true,cursor);
         }
       }
-    } else if(S.auto && ["forest","mine","dungeon","worldtree"].includes(S.place)) {
+    } else if(S.auto && ["forest","mine","dungeon"].includes(S.place)) {
       const actions=Math.min(elapsed,200000);
       for(let i=0;i<actions&&S.auto&&S.hp>0&&!S.ended;i++)workAction(true,from+(i+1)*1000);
     }
@@ -636,6 +643,7 @@
   }
 
   function toggleAuto() {
+    if(S.place==="worldtree"){S.auto=false;render();return;}
     if(S.place==="home") { toggleResting(); return; }
     if(S.hp<=0) { S.auto=false; toast(EXHAUSTED_MESSAGE); playSfx("exhausted"); render(); return; }
     S.auto=!S.auto; playSfx(S.auto?"auto_on":"auto_off");
@@ -667,7 +675,7 @@
       dom.targetImage.classList.remove("struck"); void dom.targetImage.offsetWidth; dom.targetImage.classList.add("struck");
       dom.hitFlash.classList.remove("play"); void dom.hitFlash.offsetWidth; dom.hitFlash.classList.add("play");
     },90);
-    setTimeout(()=>{dom.character.src=`assets/sprites/${type}/idle.png`;actionLocked=false;},230);
+    setTimeout(()=>{actionLocked=false;renderScene();},230);
   }
 
   function animateReflection() {
@@ -719,7 +727,9 @@
   }
 
   function render(save=false) {
+    if(S.place==="worldtree")S.auto=false;
     renderScene(); renderHud();
+    dom.autoButton.disabled=S.place==="worldtree";
     dom.autoState.textContent=S.auto?"ON":"OFF"; dom.autoButton.classList.toggle("on",S.auto);
     if(save) persist();
   }
@@ -1057,10 +1067,10 @@
     } else if(g) {
       const isEquipped=!g.special&&S.equipped[g.type]===g.id;
       const equipDisabled=g.special||isEquipped,discardDisabled=g.special||g.tier===0||isEquipped;
-      detail=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.special?"엔딩 완료 영구 징표":isEquipped?"현재 장착 중":"보유 중"}</p></div></div><div class="requirements profile-actions"><button class="primary-button" data-do="equip" ${equipDisabled?"disabled":""}>${g.special?"장착 불가":isEquipped?"장착 중":"장착하기"}</button><button class="danger-button" data-do="discard" ${discardDisabled?"disabled":""}>${g.special||g.tier===0?"버리기 불가":"버리기"}</button></div></div>`;
+      detail=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}${g.special?` x${endingCount().toLocaleString()}`:""}</h3><p class="value">${gearEffectText(g)}</p><p>${g.special?"엔딩 완료 영구 징표":isEquipped?"현재 장착 중":"보유 중"}</p></div></div><div class="requirements profile-actions"><button class="primary-button" data-do="equip" ${equipDisabled?"disabled":""}>${g.special?"장착 불가":isEquipped?"장착 중":"장착하기"}</button><button class="danger-button" data-do="discard" ${discardDisabled?"disabled":""}>${g.special||g.tier===0?"버리기 불가":"버리기"}</button></div></div>`;
     }
     const foodCards=RECIPES.map((recipe,index)=>foodCount(index)>0?`<button class="item-card ${foodSelected&&index===selectedFoodIndex?"selected":""} ${S.unseenFoodIndices.includes(index)?"unseen":""}" data-do="food-select" data-food="${index}"><img src="${foodIcon(index)}" alt=""><span><b>${recipe.name} <em class="food-stack">x${foodCount(index).toLocaleString()}</em></b><small>${S.equippedFood===index?"장착 중":"보유"}</small></span></button>`:"").join("");
-    const gearCards=S.gear.map(item=>`<button class="item-card ${!foodSelected&&item.id===g?.id?"selected":""} ${S.unseenGearIds.includes(item.id)?"unseen":""}" data-do="gear-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${item.special?"영구 징표":S.equipped[item.type]===item.id?"장착 중":"보유"}</small></span></button>`).join("");
+    const gearCards=S.gear.map(item=>`<button class="item-card ${!foodSelected&&item.id===g?.id?"selected":""} ${S.unseenGearIds.includes(item.id)?"unseen":""}" data-do="gear-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}${item.special?` <em class="food-stack">x${endingCount().toLocaleString()}</em>`:""}</b><small>${item.special?"영구 징표":S.equipped[item.type]===item.id?"장착 중":"보유"}</small></span></button>`).join("");
     dom.overlayContent.innerHTML=`${detail}<div class="section-title">보유 장비 ${inventoryItemCount()}/${GEAR_CAPACITY}</div><div class="gear-inventory-box"><div class="item-list">${gearCards}${foodCards}</div></div><div class="section-title">보유 재화</div>${walletHtml()}<div class="section-title">낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
   }
 
@@ -1146,7 +1156,28 @@
 
   async function finalizeEnding(actions) {
     if(saveClearedAfterEnding)return;
-    M.endingSeen=true;await persistMeta();await storage.remove();saveClearedAfterEnding=true;actions.classList.remove("hidden");
+    if(endingFinalization)return endingFinalization;
+    endingFinalization=(async()=>{
+      // Save a stable playthrough ID before awarding; a restart cannot award it twice.
+      S.runId=S.runId||newId("run");
+      await persist();
+      saveClearedAfterEnding=true;
+      try {
+        await saveQueue;
+        if(M.lastEndingId!==S.runId){
+          const next={endingSeen:true,endingCount:Math.min(Number.MAX_SAFE_INTEGER,endingCount()+1),lastEndingId:S.runId};
+          await storage.writeMeta(JSON.stringify(next));
+          M=next;
+        }
+        await storage.remove();
+        actions.classList.remove("hidden");
+      } catch(error) {
+        saveClearedAfterEnding=false;
+        console.warn("ending save failed",error);
+        toast("엔딩 기록을 저장하지 못했습니다. 게임을 다시 시작하면 재시도합니다.",5000);
+      }
+    })();
+    try {await endingFinalization;} finally {endingFinalization=null;}
   }
 
   function returnToIntroAfterEnding() {
@@ -1268,14 +1299,17 @@
 
   async function init() {
     const metaRaw=await storage.loadMeta();
-    if(metaRaw){try{const parsed=JSON.parse(metaRaw);M={endingSeen:!!parsed.endingSeen};}catch(error){M={endingSeen:false};}}
+    M={endingSeen:false,endingCount:0,lastEndingId:null};
+    if(metaRaw){try{const parsed=JSON.parse(metaRaw);M={endingSeen:!!parsed.endingSeen,endingCount:parsed.endingCount,lastEndingId:typeof parsed.lastEndingId==="string"?parsed.lastEndingId:null};M.endingCount=endingCount();M.endingSeen=M.endingCount>0;}catch(error){M={endingSeen:false,endingCount:0,lastEndingId:null};}}
     const raw=await storage.load();
     if(raw){
       try{const parsed=JSON.parse(raw);if(parsed.version===SAVE_VERSION)S=parsed;else{resetNotice=`업데이트 ${APP_VERSION} 적용으로 이전 세이브가 초기화되었습니다.`;await storage.remove();S=freshState();}}
       catch(error){resetNotice="손상된 세이브를 초기화했습니다.";S=freshState();}
     } else S=freshState();
     S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;if(typeof S.tutorialSeen!=="boolean")S.tutorialSeen=!!S.openingSeen;S.secretExchange=S.secretExchange||null;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();migrateBalance();refreshWorldGateUnlock();ensureSecretExchange(Date.now(),false);
-    if(M.endingSeen&&!S.gear.some(g=>g.special))S.gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
+    S.runId=S.runId||newId("run");
+    if(S.place==="worldtree")S.auto=false;
+    if(endingCount()>0&&!S.gear.some(g=>g.special))S.gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
     if(!S.logs.length)addLog("이세계에서 눈을 떴습니다.");
     bindEvents();renderIntro();showScreen("intro");
   }
@@ -1313,7 +1347,7 @@
       migrateBalance, init,
       compactXp,
       weightedIndex,
-      totalAttack,
+      totalAttack, currentWeaponType, render, endingCount, returnToIntroAfterEnding,
       settleOffline,
       workAction,
       startFishing,
@@ -1359,7 +1393,7 @@
       startEnding,
       finalizeEnding,
       setMenuOpen,
-      constants:{MAX_LEVEL,TARGET_STATS,TOP_REFLECTION,TOME_LABEL,APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES,SECRET_EXCHANGE_INTERVAL_MS,SECRET_EXCHANGE_OFFER_COUNT,SECRET_EXCHANGE_TEMPLATES},
+      constants:{ENDING_CREDITS_DELAY_MS,ENDING_CREDITS_MS,ENDING_ACTION_DELAY_MS,MAX_LEVEL,TARGET_STATS,TOP_REFLECTION,TOME_LABEL,APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES,SECRET_EXCHANGE_INTERVAL_MS,SECRET_EXCHANGE_OFFER_COUNT,SECRET_EXCHANGE_TEMPLATES},
     };
   }
 
