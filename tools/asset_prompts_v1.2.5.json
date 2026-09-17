@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "asset": "assets/items/dark_blessing.png",
+  "reference": "assets/items/easter_egg.png",
+  "prompt": "Use case: stylized-concept. Create one NEW fantasy RPG inventory item icon, 'Blessing of Pitch Darkness' (칠흑의 가호), using the supplied Easter egg icon ONLY as a reference for pixel-art finish, scale, dark palette and transparent presentation. Do not copy its egg shape. Subject: an inexplicable, hovering knot of black obsidian shadow, with a tiny intense violet core enclosed by broken angular protective arcs and a few restrained silver-violet sparks; mysterious supernatural protection against equipment breaking. A striking readable silhouette for a small mobile inventory icon. Match the reference's crisp pixel-art clusters and shaded 2D retro fantasy game style, no photorealism. Single centered object occupying about 80% of a square canvas, fully contained with padding. Real transparent alpha background, no background scene, no tile, no border, no labels, no text, no watermark, no checkerboard drawn into the image. Deliver a square transparent PNG usable as a 256x256 item asset.",
+  "integration": "Transparent generated PNG resized with nearest-neighbor sampling to 256x256; original alpha preserved."
+}

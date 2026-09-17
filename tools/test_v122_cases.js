@@ -30,7 +30,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
     assert.equal((html.match(/data-do="travel"/g)||[]).length,4);
     assert(html.includes('data-grade="3"'));assert(!html.includes("disabled"),"all areas are open at level 1");
     game.travel(place,3);assert.equal(state.grade,3);assert.equal(state.lv,1);game.newTarget();
-    assert(state.target.max>=30000&&state.target.max<=45000);assert.equal(state.target.def,5000);assert.equal(state.target.xp,10000);
+    assert(state.target.max>=30000&&state.target.max<=45000);assert.equal(state.target.def,5000);assert.equal(state.target.xp,place==="mine"?15000:10000);
     assert(game.targetAsset().endsWith("_top.png"));assert.equal(state.ended,false);
   }
 
