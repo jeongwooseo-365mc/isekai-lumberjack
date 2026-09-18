@@ -3,13 +3,16 @@
 module.exports=async function testV125({game,element,localStorage,assert}){
   let s;
   const reset=()=>{game.returnToIntroAfterEnding();s=game.state();s.lv=90;s.tutorialSeen=true;return s;};
-  reset();assert.equal(game.constants.ARMOR_HP[4],10000);
-  const armor=s.gear.find(g=>g.type==="armor");armor.tier=4;assert.equal(game.gearPower(armor),10000);armor.enh=4;assert.equal(game.gearPower(armor),18000);
+  reset();assert.equal(game.constants.ARMOR_HP[4],9000);
+  const armor=s.gear.find(g=>g.type==="armor");armor.tier=4;assert.equal(game.gearPower(armor),9000);armor.enh=4;assert.equal(game.gearPower(armor),16200);
   assert.deepEqual({...game.constants.HOUSES[4].cost},{gold1:49999,gold2:9999});
   s.res.gold=[0,49998,9999];assert.equal(game.canPay(game.constants.HOUSES[4].cost),false);s.res.gold[1]++;assert(game.pay(game.constants.HOUSES[4].cost));assert.deepEqual(Array.from(s.res.gold),[0,0,0]);
-  for(const place of ["forest","mine","dungeon"]){s.place=place;s.grade=3;game.newTarget();assert.equal(s.target.xp,place==="mine"?15000:10000);game.renderTier(place);assert(element("overlayContent").innerHTML.includes(place==="mine"?"EXP 15k":"EXP 10k"));}
-  s.place="mine";s.target.xp=10000;s.target.hp=12345;game.migrateBalance();assert.equal(s.target.xp,15000);assert.equal(s.target.hp,12345);
-  const xp=s.xp;game.defeatTarget(Date.now(),false);assert.equal(s.xp-xp,15000,"mining awards the new XP, not only a new label");
+  s.hp=20775;game.migrateBalance();assert.equal(s.hp,18975,"old armor HP is capped at the new maximum");
+  for(const place of ["forest","mine","dungeon"]){
+    s.place=place;s.grade=3;game.newTarget();assert.equal(s.target.xp,13000);game.renderTier(place);assert(element("overlayContent").innerHTML.includes("EXP 13k"));
+    s.target.xp=place==="mine"?15000:10000;s.target.hp=12345;game.migrateBalance();assert.equal(s.target.xp,13000);assert.equal(s.target.hp,12345);
+    const xp=s.xp;game.defeatTarget(Date.now(),false);assert.equal(s.xp-xp,13000,"all top areas award the adjusted XP after migration");
+  }
   for(let hour=0;hour<24;hour+=3){
     const at=new Date(2026,8,17,hour,0,0).getTime(),next=new Date(2026,8,17,hour+3,0,0).getTime();
     assert.equal(game.secretResetAt(at),next);assert.equal(game.secretResetAt(next-1),next);

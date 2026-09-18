@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.2.5","crystal farming expansion app version");
+    assert.equal(game.constants.APP_VERSION,"1.2.6","crystal farming expansion app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -86,7 +86,7 @@ setTimeout(async()=>{
     assert.equal(game.compactXp(999),"999");assert.equal(game.compactXp(2345),"2k");assert.equal(game.compactXp(1234567),"1234k","XP keeps k notation above one million");
 
     state=game.freshState();game.replaceState(state);state.lv=90;const armor=state.gear.find(g=>g.type==="armor");armor.tier=4;armor.enh=4;
-    assert.equal(game.maxHp(),20775,"Lv90 divine armor +4 max HP");
+    assert.equal(game.maxHp(),18975,"Lv90 divine armor +4 max HP");
 
     state=game.freshState();game.replaceState(state);const rod=state.gear.find(g=>g.type==="rod");rod.tier=4;rod.enh=4;
     assert(Math.abs(game.enhancementMultiplier(rod)-1.8)<.0001,"rod uses weapon enhancement multiplier");

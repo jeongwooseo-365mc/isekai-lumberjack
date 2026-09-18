@@ -50,6 +50,10 @@ const server=http.createServer((req,res)=>{
         assert(await page.locator("#targetImage").getAttribute("src").then(s=>s.endsWith("_top.png")));
         assert(await page.locator("#scene").evaluate(e=>e.style.backgroundImage.includes("4.png")));
         assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+        await page.locator("#scene").click({position:{x:180,y:250}});
+        const expectedSource={forest:"최상급 나무",mine:"최상급 광맥",dungeon:"흑수정 드래곤"}[place];
+        const reflection=await page.evaluate(()=>window.__GAME_DEBUG__.state().logs.filter(entry=>entry.text.includes("반사 피해")).at(-1)?.text);
+        assert(reflection.startsWith(`${expectedSource}의 반사 피해 `),reflection);
         await page.screenshot({path:path.join(out,`${place}-${width}x${height}.png`)});
       }
       await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
@@ -136,9 +140,26 @@ const server=http.createServer((req,res)=>{
       await page.evaluate(()=>window.__GAME_DEBUG__.flushSaveQueue());await page.reload();
       await page.waitForFunction(()=>window.__GAME_DEBUG__?.blessingCount()===1);
       assert.deepEqual(await page.evaluate(()=>({...window.__GAME_DEBUG__.state().tomes})),{wood:410,ore:400,gold:400});
+      await page.getByRole("button",{name:"게임 시작",exact:true}).click();
+      const checkHeader=async(title)=>{
+        assert.equal(await page.locator("#overlayTitle").innerText(),title);
+        assert.equal(await page.locator("#overlaySubtitle").count(),0);
+        assert.equal(await page.locator(".overlay-header p").count(),0);
+        assert.equal(await page.locator("#overlayTitle").evaluate(el=>parseFloat(getComputedStyle(el).fontSize)),22);
+        assert(await page.locator(".overlay-header").evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+      };
+      for(const title of ["지도","제작소","부동산","요리","강화","마이페이지","설정"]){
+        await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
+        await page.getByRole("button",{name:title,exact:true}).click();await checkHeader(title);
+        if(title==="제작소"){
+          await page.locator('[data-do="workshop-type"][data-type="secret"]').click();await checkHeader("비밀교환소");
+        }
+        if(title==="지도"||title==="제작소")await page.screenshot({path:path.join(out,`header-${title==="지도"?"map":"exchange"}-${width}x${height}.png`)});
+        await page.locator("#closeButton").click();
+      }
       await context.close();
     }
-    assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, manual boss, strongest equipped weapon, trophy stack, tome/blessing exchange and saved protection stack\n");
-    console.log("Browser v1.2.5 QA: PASS");
+    assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, manual boss, strongest equipped weapon, trophy stack, tome/blessing exchange and saved protection stack, all menu headers, named top-area reflection logs\n");
+    console.log("Browser v1.2.6 QA: PASS");
   }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});

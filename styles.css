@@ -137,8 +137,7 @@ img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }
 .overlay.open { display: flex; }
 .overlay-panel { width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; border: 1px solid #a17d47; border-radius: 12px; background: linear-gradient(#1d1913, #100e0b); box-shadow: var(--shadow); }
 .overlay-header { flex: none; min-height: 58px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: center; border-bottom: 1px solid #665037; background: #211b14; }
-.overlay-header h2 { margin: 0; color: #ffd77a; font-size: 17px; }
-.overlay-header p { margin: 2px 0 0; color: var(--muted); font-size: 9px; }
+.overlay-header h2 { margin: 0; color: #ffd77a; font-size: 22px; line-height: 1.2; }
 .back-button, .close-button { width: 34px; height: 34px; margin: auto; border: 1px solid #735b3c; border-radius: 7px; background: #33291e; font-size: 24px; line-height: 1; }
 .overlay-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 10px; }
 .section-title { margin: 13px 0 7px; color: #e8c77f; font-size: 12px; }

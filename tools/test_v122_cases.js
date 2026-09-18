@@ -6,7 +6,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
   const reset=()=>{state=game.freshState();game.replaceState(state);return state;};
   assert.equal(game.constants.MAX_LEVEL,150);
   assert.deepEqual({...game.constants.FINAL_BOSS},{hp:10000000,def:20000,reflectMin:75,reflectMax:150});
-  assert.deepEqual({...game.constants.TARGET_STATS[3]},{min:30000,max:45000,def:5000,xp:10000});
+  assert.deepEqual({...game.constants.TARGET_STATS[3]},{min:30000,max:45000,def:5000,xp:13000});
 
   reset();state.lv=99;state.xp=game.needXp()-1;game.addXp(1);
   assert.equal(state.lv,100);assert(state.worldGateUnlocked,"level 100 still unlocks the gate");
@@ -30,7 +30,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
     assert.equal((html.match(/data-do="travel"/g)||[]).length,4);
     assert(html.includes('data-grade="3"'));assert(!html.includes("disabled"),"all areas are open at level 1");
     game.travel(place,3);assert.equal(state.grade,3);assert.equal(state.lv,1);game.newTarget();
-    assert(state.target.max>=30000&&state.target.max<=45000);assert.equal(state.target.def,5000);assert.equal(state.target.xp,place==="mine"?15000:10000);
+    assert(state.target.max>=30000&&state.target.max<=45000);assert.equal(state.target.def,5000);assert.equal(state.target.xp,13000);
     assert(game.targetAsset().endsWith("_top.png"));assert.equal(state.ended,false);
   }
 
@@ -57,7 +57,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
     for(let i=0;i<3000;i++){
       state.tomes={wood:0,ore:0,gold:0};state.stones=[0,0,0];
       for(const k of Object.keys(state.res))state.res[k]=[0,0,0];
-      state.target={hp:0,max:30000+(i%3)*7500,def:5000,xp:10000};
+      state.target={hp:0,max:30000+(i%3)*7500,def:5000,xp:13000};
       game.defeatTarget(1000,false);
       const t=state.tomes[kind],s=state.stones[2],r=state.res[kind][2];
       assert.equal(Number(t>0)+Number(s>0)+Number(r>0),1,"exactly one reward category");

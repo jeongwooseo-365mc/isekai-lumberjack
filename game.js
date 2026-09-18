@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.2.5";
+  const APP_VERSION = "1.2.6";
   const MAX_LEVEL = 150;
   const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
@@ -25,7 +25,7 @@
   const TOME_LABEL = { wood: "목의 비의서", ore: "철의 비의서", gold: "금의 비의서" };
   const GEAR_LABEL = { axe: "도끼", pickaxe: "곡괭이", rod: "낚싯대", sword: "검", armor: "갑옷" };
   const WEAPON_POWER = [10, 20, 100, 700, 5000];
-  const ARMOR_HP = [100, 200, 500, 1500, 10000];
+  const ARMOR_HP = [100, 200, 500, 1500, 9000];
   const PLACE_LABEL = { home: "집", forest: "숲", mine: "광산", pond: "연못", dungeon: "던전", worldtree: "칠흑의 세계수" };
   const PLACE_RESOURCE = { forest: "wood", mine: "ore", dungeon: "gold" };
   const RESOURCE_LABEL = { wood: "목재", ore: "광석", gold: "금화" };
@@ -36,7 +36,7 @@
     { min: 200, max: 400, def: 0, xp: 20 },
     { min: 1000, max: 2000, def: 200, xp: 100 },
     { min: 5000, max: 10000, def: 1000, xp: 1000 },
-    { min: 30000, max: 45000, def: 5000, xp: 10000 },
+    { min: 30000, max: 45000, def: 5000, xp: 13000 },
   ];
 
   const GEAR_COST = {
@@ -101,7 +101,7 @@
     menuToggle: $("menuToggle"), mainMenu: $("mainMenu"), mapMenuButton: $("mapMenuButton"), targetHud: $("targetHud"), targetArea: $("targetArea"), targetName: $("targetName"), targetImage: $("targetImage"), targetHpFill: $("targetHpFill"), targetHpText: $("targetHpText"),
     character: $("character"), fishingLine: $("fishingLine"), bobber: $("bobber"), fishingStatus: $("fishingStatus"), tapHint: $("tapHint"), lootBurst: $("lootBurst"), hitFlash: $("hitFlash"),
     level: $("levelLabel"), xpFill: $("xpFill"), xpText: $("xpText"), hp: $("hpStat"), hpMeter: $("hpMeter"), hpFill: $("hpFill"), attack: $("attackStat"), place: $("placeStat"), equipped: $("equippedGrid"), log: $("logPanel"),
-    autoButton: $("autoButton"), autoState: $("autoState"), overlay: $("overlay"), overlayTitle: $("overlayTitle"), overlaySubtitle: $("overlaySubtitle"), overlayContent: $("overlayContent"),
+    autoButton: $("autoButton"), autoState: $("autoState"), overlay: $("overlay"), overlayTitle: $("overlayTitle"), overlayContent: $("overlayContent"),
     toast: $("toast"), dialog: $("confirmDialog"), dialogTitle: $("dialogTitle"), dialogMessage: $("dialogMessage"), dialogCancel: $("dialogCancel"), dialogConfirm: $("dialogConfirm"), guide: $("newUserGuide"),
   };
 
@@ -384,7 +384,7 @@
     return `${GRADES[S.grade]} ${PLACE_LABEL[S.place]}`;
   }
 
-  function targetXp(place=S.place,grade=S.grade) { return place==="mine"&&grade===3?15000:TARGET_STATS[grade].xp; }
+  function targetXp(grade=S.grade) { return TARGET_STATS[grade].xp; }
   function newTarget() {
     if(S.place==="worldtree") { S.target={hp:FINAL_BOSS.hp,max:FINAL_BOSS.hp,def:FINAL_BOSS.def,xp:0}; return; }
     const stat=TARGET_STATS[S.grade], hp=randNorm(stat.min,stat.max);
@@ -509,7 +509,7 @@
     const reflected=randNorm(min,max);
     S.hp=Math.max(0,S.hp-reflected);
     if(!simulated){
-      addLog(`${S.place==="worldtree"?"세계수":"흑수정"}의 반사 피해 ${reflected.toLocaleString()}.`,"assets/ui/energy.png","warn",at);
+      addLog(`${S.place==="worldtree"?"세계수":targetLabel()}의 반사 피해 ${reflected.toLocaleString()}.`,"assets/ui/energy.png","warn",at);
       setTimeout(animateReflection,150);
     }
     if(S.hp<=0)handleExhaustion(simulated,at);
@@ -943,7 +943,7 @@
     renderers[view.type](view.args||{});
   }
 
-  function setOverlayHeader(title,subtitle="") { dom.overlayTitle.textContent=title; dom.overlaySubtitle.textContent=subtitle; }
+  function setOverlayHeader(title) { dom.overlayTitle.textContent=title; }
 
   function closeOverlay() {
     overlayStack=[]; dom.overlay.classList.remove("open"); dom.overlay.setAttribute("aria-hidden","true");
@@ -956,15 +956,15 @@
   }
 
   function renderMap() {
-    setOverlayHeader("지도","이세계에서 살아갈 장소를 선택합니다");
+    setOverlayHeader("지도");
     refreshWorldGateUnlock();
     const world=S.worldGateUnlocked?`<button class="map-point world" data-do="world">원래세계로 가는 문</button>`:"";
     dom.overlayContent.innerHTML=`<div class="map-area">${world}<button class="map-point home" data-do="travel" data-place="home">집</button><button class="map-point forest" data-do="tier" data-place="forest">숲</button><button class="map-point pond" data-do="travel" data-place="pond">연못</button><button class="map-point mine" data-do="tier" data-place="mine">광산</button><button class="map-point dungeon" data-do="tier" data-place="dungeon">던전</button></div>`;
   }
 
   function renderTier({place}) {
-    setOverlayHeader(`${PLACE_LABEL[place]} 선택`,"등급이 높을수록 강한 장비가 필요합니다");
-    dom.overlayContent.innerHTML=`<div class="tier-grid">${[0,1,2,3].map(grade=>`<button class="tier-option ${AREA_ASSET_GRADES[grade]}" data-do="travel" data-place="${place}" data-grade="${grade}"><img src="assets/targets/${place==="forest"?"tree":place==="mine"?"ore":"monster"}_${AREA_ASSET_GRADES[grade]}.png" alt=""><span><strong>${GRADES[grade]} ${PLACE_LABEL[place]}</strong><small>HP ${TARGET_STATS[grade].min.toLocaleString()}~${TARGET_STATS[grade].max.toLocaleString()} · 방어력 ${TARGET_STATS[grade].def.toLocaleString()} · EXP ${compactXp(targetXp(place,grade))}${grade===3?" · 반사 피해 5~20":""}</small></span></button>`).join("")}</div>`;
+    setOverlayHeader(`${PLACE_LABEL[place]} 선택`);
+    dom.overlayContent.innerHTML=`<div class="tier-grid">${[0,1,2,3].map(grade=>`<button class="tier-option ${AREA_ASSET_GRADES[grade]}" data-do="travel" data-place="${place}" data-grade="${grade}"><img src="assets/targets/${place==="forest"?"tree":place==="mine"?"ore":"monster"}_${AREA_ASSET_GRADES[grade]}.png" alt=""><span><strong>${GRADES[grade]} ${PLACE_LABEL[place]}</strong><small>HP ${TARGET_STATS[grade].min.toLocaleString()}~${TARGET_STATS[grade].max.toLocaleString()} · 방어력 ${TARGET_STATS[grade].def.toLocaleString()} · EXP ${compactXp(targetXp(grade))}${grade===3?" · 반사 피해 5~20":""}</small></span></button>`).join("")}</div>`;
   }
 
   function renderWorkshop() {
@@ -974,7 +974,7 @@
       selectedWorkshop={type:"axe",tier:1};
     }
     const {type,tier}=selectedWorkshop, cost=GEAR_COST[type][tier], sample={type,tier,enh:0};
-    setOverlayHeader("제작소","도구와 갑옷을 재료로 직접 제작합니다");
+    setOverlayHeader("제작소");
     const stat=gearEffectText(sample);
     const secretTab=secretExchangeVisible()?`<button class="secret-tab" data-do="workshop-type" data-type="secret">비밀교환소</button>`:"";
     dom.overlayContent.innerHTML=`
@@ -990,7 +990,7 @@
     if(!offers.length){selectedWorkshop={type:"axe",tier:1};return renderWorkshop();}
     let offer=offers.find(item=>item.id===selectedSecretOfferId)||offers[0];selectedSecretOfferId=offer.id;
     const reward=secretItemMeta(offer.reward.key),canExchange=canPaySecret(offer.costs)&&canReceiveSecret(offer.reward);
-    setOverlayHeader("비밀교환소","현지 시각 00시·06시·12시·18시에 품목이 바뀝니다");
+    setOverlayHeader("비밀교환소");
     const tabs=Object.keys(GEAR_LABEL).map(key=>`<button data-do="workshop-type" data-type="${key}">${GEAR_LABEL[key]}</button>`).join("");
     dom.overlayContent.innerHTML=`
       <div class="category-tabs">${tabs}<button class="secret-tab active" data-do="workshop-type" data-type="secret">비밀교환소</button></div>
@@ -1026,7 +1026,7 @@
   }
 
   function renderEstate() {
-    const house=HOUSES[selectedHouse],owned=S.houses[selectedHouse]; setOverlayHeader("부동산","집을 구입하고 휴식처를 지정합니다");
+    const house=HOUSES[selectedHouse],owned=S.houses[selectedHouse]; setOverlayHeader("부동산");
     dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="assets/bg/home${selectedHouse+1}.png" alt=""></div><div class="detail-copy"><h3>${house.name}</h3><p class="value">1초마다 체력 +${house.heal}</p><p>${S.house===selectedHouse?"현재 휴식처":owned?"보유 중":"미보유"}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${requirementHtml(house.cost)}<button class="primary-button wide-action" data-do="house-action" ${!owned&&!canPay(house.cost)?"disabled":""}>${owned?(S.house===selectedHouse?"사용 중":"휴식처로 지정"):"구입하기"}</button></div></div><div class="section-title">매물 목록</div><div class="item-list">${HOUSES.map((h,i)=>`<button class="item-card ${i===selectedHouse?"selected":""}" data-do="house-select" data-house="${i}"><img src="assets/bg/home${i+1}.png" alt=""><span><b>${h.name}</b><small>1초당 +${h.heal} · ${S.houses[i]?"보유":"미보유"}</small></span></button>`).join("")}</div>`;
   }
 
@@ -1044,7 +1044,7 @@
   function fishPay(cost){if(!canFishPay(cost))return false;for(const[n,v]of Object.entries(cost))S.fish[n]-=v;return true;}
 
   function renderCooking() {
-    const recipe=RECIPES[selectedRecipe],needsSlot=foodCount(selectedRecipe)<=0,storageFull=needsSlot&&inventoryItemCount()>=GEAR_CAPACITY;setOverlayHeader("요리","낚시 재료로 회복 음식을 요리합니다");
+    const recipe=RECIPES[selectedRecipe],needsSlot=foodCount(selectedRecipe)<=0,storageFull=needsSlot&&inventoryItemCount()>=GEAR_CAPACITY;setOverlayHeader("요리");
     dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="assets/foods/${recipe.icon}.png" alt=""></div><div class="detail-copy"><h3>${recipe.name}</h3><p class="value">체력 +${recipe.heal.toLocaleString()}</p><p>보유 ${foodCount(selectedRecipe).toLocaleString()}개 · 마이페이지에서 장착 또는 섭취</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${fishRequirementHtml(recipe.cost)}<button class="primary-button wide-action" data-do="cook" ${!canFishPay(recipe.cost)||foodCount(selectedRecipe)>=MAX_ITEM_COUNT||storageFull?"disabled":""}>요리하기</button></div></div><div class="section-title">요리 목록</div><div class="item-list">${RECIPES.map((r,i)=>`<button class="item-card ${i===selectedRecipe?"selected":""}" data-do="recipe-select" data-recipe="${i}"><img src="assets/foods/${r.icon}.png" alt=""><span><b>${r.name}</b><small>체력 +${r.heal.toLocaleString()} · 보유 x${foodCount(i).toLocaleString()}</small></span></button>`).join("")}</div><div class="section-title">보유 낚시 재료</div><div class="resource-wallet">${FISH.map(name=>`<div class="wallet-card"><img src="${fishIcon(name)}" alt=""><span>${name}<b>${S.fish[name].toLocaleString()}</b></span></div>`).join("")}</div>`;
   }
 
@@ -1066,7 +1066,7 @@
 
   function renderEnhance() {
     const candidates=S.gear.filter(g=>!g.special);let g=gearById(selectedEnhanceId);if(!g||g.special){g=candidates[0];selectedEnhanceId=g?.id||null;}
-    setOverlayHeader("강화","모든 장비를 동일한 확률과 파괴 규칙으로 +10까지 강화합니다");
+    setOverlayHeader("강화");
     if(!g){dom.overlayContent.innerHTML="<p>강화할 장비가 없습니다.</p>";return;}
     const req=g.enh<10?enhRequirements(g):{},ok=Object.entries(req).every(([k,v])=>S.stones[k]>=v);
     const reqHtml=Object.entries(req).map(([grade,need])=>`<div class="requirement-row ${S.stones[grade]<need?"missing":""}"><img src="${stoneIcon(+grade)}" alt=""><span>${GRADES[grade]} 강화의 돌</span><b>${S.stones[grade].toLocaleString()} / ${need}</b></div>`).join("");
@@ -1091,7 +1091,7 @@
     const foodSelected=Number.isInteger(selectedFoodIndex)&&foodCount(selectedFoodIndex)>0;
     let g=null;
     if(!foodSelected){g=gearById(selectedGearId);if(!g){g=equipped("axe")||S.gear[0];selectedGearId=g?.id||null;}}
-    setOverlayHeader("마이페이지","보유 장비와 음식을 확인하고 사용합니다");
+    setOverlayHeader("마이페이지");
     let detail="";
     if(foodSelected) {
       const recipe=RECIPES[selectedFoodIndex],isEquipped=S.equippedFood===selectedFoodIndex;
@@ -1142,7 +1142,7 @@
   }
 
   function renderSettings() {
-    setOverlayHeader("설정","음량·게임 종료");
+    setOverlayHeader("설정");
     dom.overlayContent.innerHTML=`<div class="settings-group"><label><span>BGM</span><input type="range" min="0" max="100" value="${Math.round(S.settings.bgm*100)}" data-setting="bgm"><b>${Math.round(S.settings.bgm*100)}%</b></label><label><span>효과음</span><input type="range" min="0" max="100" value="${Math.round(S.settings.sfx*100)}" data-setting="sfx"><b>${Math.round(S.settings.sfx*100)}%</b></label></div><div class="settings-actions"><button class="danger-button" data-do="quit">게임 종료</button><button class="danger-button" data-do="reset">세이브 초기화</button></div><p class="section-title">진행 상황은 자동 저장됩니다 · 버전 ${APP_VERSION}</p>`;
   }
 
@@ -1322,7 +1322,8 @@
   }
 
   function migrateBalance() {
-    if(S.place==="mine"&&S.grade===3&&S.target)S.target.xp=targetXp();
+    S.hp=Math.min(S.hp,maxHp());
+    if(["forest","mine","dungeon"].includes(S.place)&&S.grade===3&&S.target)S.target.xp=targetXp();
     // Keep an unfinished saved boss fight at the same health percentage.
     if(S.place==="worldtree"&&!S.ended&&S.target&&(S.target.max!==FINAL_BOSS.hp||S.target.def!==FINAL_BOSS.def)){
       const ratio=Math.max(0,Math.min(1,S.target.hp/S.target.max));
