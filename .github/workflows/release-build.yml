@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - work/cave-rest-followup
     paths-ignore:
       - "**/*.md"
 
