@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.2.8","cave rest and music release app version");
+    assert.equal(game.constants.APP_VERSION,"1.2.9","cave door, food, and transcendence release app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -68,8 +68,8 @@ setTimeout(async()=>{
     assert.equal(game.weightedIndex(game.constants.ROD_PROBS[3],.999),5,"hero rod can still catch lobster after weight normalization");
     assert.equal(game.weightedIndex(game.constants.ROD_PROBS[4],.999),5,"divine rod can still catch lobster after weight normalization");
     assert.deepEqual(Array.from(game.constants.RECIPES,r=>({name:r.name,heal:r.heal,cost:{...r.cost}})),[
-      {name:"생선 수프",heal:75,cost:{해초:100,민어:20}},
-      {name:"해산물 스튜",heal:225,cost:{해초:100,조개:100,민어:50}},
+      {name:"생선 수프",heal:100,cost:{해초:100,민어:25}},
+      {name:"해산물 스튜",heal:300,cost:{해초:100,조개:100,민어:50}},
       {name:"구운 생선",heal:1000,cost:{숭어:100}},
       {name:"연어 스테이크",heal:2000,cost:{연어:100}},
       {name:"고급 랍스터 정식",heal:5000,cost:{랍스터:100}},
@@ -91,6 +91,10 @@ setTimeout(async()=>{
     state=game.freshState();game.replaceState(state);const rod=state.gear.find(g=>g.type==="rod");rod.tier=4;rod.enh=4;
     assert(Math.abs(game.enhancementMultiplier(rod)-1.8)<.0001,"rod uses weapon enhancement multiplier");
     assert(Math.abs(game.rodMeanSeconds(rod)-8.3333333333)<.001,"rod +4 reduces mean fishing time");
+    rod.enh=10;assert(Math.abs(game.enhancementMultiplier(rod)-9.3)<.0001,"+10 divine gear keeps the previous multiplier");
+    rod.enh=11;assert(Math.abs(game.enhancementMultiplier(rod)-19.3)<.0001,"+11 divine gear adds 1000% of its base stat");
+    assert.equal(game.rodMeanSeconds(rod),1,"the +11 rod respects the minimum displayed second");
+    for(const type of ["axe","pickaxe","sword","armor"]){const gear=state.gear.find(g=>g.type===type);gear.tier=4;gear.enh=11;assert.equal(game.gearPower(gear),type==="armor"?173700:96500,`${type} uses the new +11 stat`);}
 
     state=game.freshState();game.replaceState(state);state.lv=99;state.worldGateUnlocked=false;
     state.gear=Object.keys(state.equipped).map((type,i)=>({id:`divine_${i}`,type,tier:4,enh:0}));
@@ -136,10 +140,10 @@ setTimeout(async()=>{
     assert.equal(game.settleOffline(clockNow),5,"absolute clock settles complete elapsed seconds");assert.equal(state.hp,5);assert.equal(state.restProgress,0);assert.equal(state.lastSeen,clockNow-500,"clock keeps the sub-second remainder");
     assert.equal(game.settleOffline(clockNow+500),1,"the retained remainder is reconciled on the next lifecycle tick");assert.equal(state.hp,6);assert.equal(state.restProgress,0);
 
-    state=game.freshState();game.replaceState(state);state.fish["해초"]=100;state.fish["민어"]=20;state.hp=125;
+    state=game.freshState();game.replaceState(state);state.fish["해초"]=100;state.fish["민어"]=25;state.hp=125;
     game.selectRecipe(0);game.cookSelected();assert.equal(state.foods[0],1,"cooking creates one stored food");assert.equal(state.hp,125,"cooking does not immediately heal");assert.equal(state.fish["해초"],0);assert.equal(state.fish["민어"],0);assert(state.logs.at(-1).text.includes("생선 수프 1개를 만들었습니다."));
     state.equippedFood=0;state.place="forest";state.auto=true;state.hp=1;state.target={hp:999999,max:999999,def:0,xp:20};game.workAction(true,1000);
-    assert.equal(state.hp,75,"equipped food automatically restores HP at zero");assert.equal(state.foods[0],0,"automatic eating consumes one food");assert.equal(state.equippedFood,null,"empty food stack clears the equipped slot");assert.equal(state.auto,true,"auto continues after automatic food recovery");assert(!state.unseenFoodIndices.includes(0),"empty food stacks clear their unseen marker");
+    assert.equal(state.hp,100,"equipped food automatically restores HP at zero");assert.equal(state.foods[0],0,"automatic eating consumes one food");assert.equal(state.equippedFood,null,"empty food stack clears the equipped slot");assert.equal(state.auto,true,"auto continues after automatic food recovery");assert(!state.unseenFoodIndices.includes(0),"empty food stacks clear their unseen marker");
 
     state=game.freshState();game.replaceState(state);state.foods[3]=2;state.hp=0;game.selectFood(3);game.equipSelectedFood();assert.equal(state.equippedFood,3);game.renderProfile();assert(element("overlayContent").innerHTML.includes("연어 스테이크 x2"));game.renderHud();assert.equal((element("equippedGrid").innerHTML.match(/class="equip-slot/g)||[]).length,6,"HUD includes five gear slots and one food slot");assert(element("equippedGrid").innerHTML.includes("x2"));
     assert(element("overlayContent").innerHTML.includes("장착 해제"),"equipped food offers an unequip action");assert(!element("overlayContent").innerHTML.includes("즉시먹기"),"equipped food hides immediate eating");game.unequipSelectedFood();assert.equal(state.equippedFood,null,"food can be unequipped without being consumed");game.renderProfile();assert(element("overlayContent").innerHTML.includes("즉시먹기"));
@@ -155,7 +159,7 @@ setTimeout(async()=>{
     game.markFoodUnseen(2);game.renderProfile();assert(element("overlayContent").innerHTML.includes("item-card  unseen"),"new food stacks receive the pale inventory border");game.markFoodSeen(2);assert(!state.unseenFoodIndices.includes(2),"opening food clears its unseen marker");
 
     state=game.freshState();game.replaceState(state);delete state.unseenGearIds;delete state.unseenFoodIndices;game.normalizeInventory();assert.deepEqual(state.unseenGearIds,[],"older v1.1 saves gain an empty unseen-equipment list");assert.deepEqual(state.unseenFoodIndices,[],"older v1.1 saves gain an empty unseen-food list");
-    state=game.freshState();game.replaceState(state);while(state.gear.length<40)state.gear.push({id:`full_${state.gear.length}`,type:"axe",tier:1,enh:0});state.fish["해초"]=100;state.fish["민어"]=20;game.selectRecipe(0);game.cookSelected();assert.equal(state.foods[0],0,"a new food kind cannot exceed the shared forty-slot capacity");assert.equal(state.fish["해초"],100,"blocked cooking preserves ingredients");
+    state=game.freshState();game.replaceState(state);while(state.gear.length<40)state.gear.push({id:`full_${state.gear.length}`,type:"axe",tier:1,enh:0});state.fish["해초"]=100;state.fish["민어"]=25;game.selectRecipe(0);game.cookSelected();assert.equal(state.foods[0],0,"a new food kind cannot exceed the shared forty-slot capacity");assert.equal(state.fish["해초"],100,"blocked cooking preserves ingredients");
     state.gear.pop();state.foods[0]=1;game.cookSelected();assert.equal(state.foods[0],2,"an existing food stack can grow while all forty shared slots are occupied");assert.equal(game.inventoryItemCount(),40);
 
     state=game.freshState();game.replaceState(state);game.renderProfile();const shabbyCount=state.gear.length;await game.discardSelected();assert.equal(state.gear.length,shabbyCount,"shabby gear cannot be discarded");
