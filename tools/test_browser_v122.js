@@ -102,6 +102,7 @@ const server=http.createServer((req,res)=>{
         await page.getByRole("button",{name:"지도",exact:true}).click();
       }
       await page.getByRole("button",{name:"오래된 문",exact:true}).click();
+      assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/ancient_cave_map.ogg'));
       assert(await page.locator('[data-do="return-world"]').isEnabled());
       assert.equal(await page.locator('.requirement-row').count(),4);
       await page.screenshot({path:path.join(out,`ending-door-${width}x${height}.png`)});
@@ -176,7 +177,7 @@ const server=http.createServer((req,res)=>{
           await page.getByRole("button",{name:"원래세계로 가는 문",exact:true}).click();
           await page.waitForFunction(()=>document.getElementById("bossPreludeScreen").classList.contains("active"));
           assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/cave_entrance.ogg'));
-          assert.equal(await page.locator('#bossChallenge p').innerHTML(),'문 너머의 칠흑 같은 동굴 속에서<br>원래 세상의 찬 공기가<br>어렴풋 느껴진다.<br>나가기 위한 재료를<br>모아야 한다');
+          assert.equal(await page.locator('#bossChallenge p').innerHTML(),'문 너머의 칠흑 같은 동굴 속에서<br>원래 세상의 찬 공기가<br>어렴풋 느껴진다.<br>나가기 위한 재료를<br>모아야 한다.');
           assert.equal(await page.locator('#bossChallenge').evaluate(el=>getComputedStyle(el).textAlign),'center');
           assert(await page.locator('#bossChallenge p').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
           assert(!(await page.locator("#confirmDialog").evaluate(el=>el.classList.contains("open"))));
@@ -184,6 +185,7 @@ const server=http.createServer((req,res)=>{
           await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
           await page.getByRole("button",{name:"지도",exact:true}).click();
           await page.getByRole("button",{name:"오래된 문",exact:true}).click();
+          assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/ancient_cave_map.ogg'));
           await page.getByRole("button",{name:"문 열기",exact:true}).click();
           await page.getByRole("button",{name:"귀환한다",exact:true}).click();
           assert(await page.evaluate(()=>window.__GAME_DEBUG__.state().ended));
@@ -202,10 +204,10 @@ const server=http.createServer((req,res)=>{
             assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/true_ending.ogg'));
             assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.audioState().endingSrc),undefined);
             await page.clock.runFor(7000);
-          }else{assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('일반엔딩'));await page.clock.runFor(41200);}
+          }else{assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('일반 엔딩'));await page.clock.runFor(41200);}
           await page.waitForFunction(()=>!document.getElementById('endingActions').classList.contains('hidden'));
           assert.equal(await page.locator('#normalEndingHint').isVisible(),!eggs);
-          if(!eggs)assert.equal(await page.locator('#normalEndingHint').innerText(),'*엔딩을 한번 더 진행하는 것으로 진엔딩 달성가능');
+          if(!eggs)assert.equal(await page.locator('#normalEndingHint').innerText(),'*엔딩을 한 번 더 보면 진 엔딩을 달성할 수 있습니다.');
           assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.endingCount()),eggs+1);
           await page.screenshot({path:path.join(out,eggs?'true-ending-complete.png':'normal-ending-complete.png')});
           await page.getByRole("button",{name:"인트로로",exact:true}).click();

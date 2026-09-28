@@ -75,8 +75,8 @@
   ];
 
   const RECIPES = [
-    { name: "생선 수프", icon: "fish_soup", heal: 75, cost: {해초:100,민어:20} },
-    { name: "해산물 스튜", icon: "seafood_stew", heal: 225, cost: {해초:100,조개:100,민어:50} },
+    { name: "생선 수프", icon: "fish_soup", heal: 100, cost: {해초:100,민어:25} },
+    { name: "해산물 스튜", icon: "seafood_stew", heal: 300, cost: {해초:100,조개:100,민어:50} },
     { name: "구운 생선", icon: "grilled_fish", heal: 1000, cost: {숭어:100} },
     { name: "연어 스테이크", icon: "salmon_steak", heal: 2000, cost: {연어:100} },
     { name: "고급 랍스터 정식", icon: "lobster_course", heal: 5000, cost: {랍스터:100} },
@@ -309,7 +309,7 @@
   function enhancementMultiplier(g) {
     if(!g) return 1;
     let multiplier=1;
-    for(let i=1;i<=g.enh;i++) multiplier += g.tier===0 ? .2 : i<=4 ? .2 : i<=7 ? .5 : i===11&&g.tier===4 ? 4 : 2;
+    for(let i=1;i<=g.enh;i++) multiplier += g.tier===0 ? .2 : i<=4 ? .2 : i<=7 ? .5 : i===11&&g.tier===4 ? 10 : 2;
     return multiplier;
   }
   function gearPower(g) {
@@ -999,7 +999,7 @@
     dom.overlay.classList.add("open"); dom.overlay.setAttribute("aria-hidden","false"); setBgm(overlayBgmKey()); renderView();
   }
 
-  function overlayBgmKey() { return inCave()&&overlayStack[overlayStack.length-1]?.type==="map"?"cave_map":"map"; }
+  function overlayBgmKey() { return inCave()&&["map","door"].includes(overlayStack[overlayStack.length-1]?.type)?"cave_map":"map"; }
 
   function renderView() {
     const view=overlayStack[overlayStack.length-1]; if(!view) return closeOverlay();
@@ -1292,14 +1292,14 @@
     setBgm("true_ending");dom.ending.classList.add("true-ending");
     const images=$("endingImages"),first=$("endingReturnImage"),second=$("endingFinalImage"),track=$("endingCreditsTrack"),actions=$("endingActions");
     first.classList.remove("active");second.classList.remove("active");images.classList.remove("fade-out");actions.classList.add("hidden");track.classList.remove("roll");
-    const lines=["어렴풋이 알았다.","난 이미 죽음의 문턱에 있고, 지금의 나는 꺼져가는 의식 어딘가라는걸.","문 너머는 원래 세상이 아니다. 원래세상 같은 허상이다.","도끼질을 하는것만이 내 낙이었다.<br>그래서인지 허상인 이 공간에서 나는 내 낙을 갈구해 왔던 것 같다.","영원히 반복될 이 허상을 이제 보내주자."];
+    const lines=["어렴풋이 알았다.","난 이미 죽음의 문턱에 있고, 지금의 나는 꺼져 가는 의식 어딘가에 있다.","문 너머는 원래 세상이 아니다. 원래 세상 같은 허상이다.","도끼질을 하는 것만이 내 낙이었다.<br>그래서인지 허상인 이 공간에서 나는 내 낙을 갈구해 왔던 것 같다.","영원히 반복될 이 허상을 이제 보내주자."];
     track.innerHTML=lines.map(line=>`<p>${line}</p>`).join("");
     cinematicLater(()=>track.classList.add("roll"),100,token);
     cinematicLater(()=>{track.classList.remove("roll");track.innerHTML="";first.src="assets/bg/true_ending_hospital.png";first.classList.add("active");if(bgm)bgm.pause();endingSound("heartbeat",true);},25500,token);
     cinematicLater(()=>{first.src="assets/bg/true_ending_monitor_alive.png";},33500,token);
     cinematicLater(()=>{first.src="assets/bg/true_ending_monitor_flatline.png";endingSound("flatline");},39500,token);
     cinematicLater(()=>{images.classList.add("fade-out");if(endingAudio){endingAudio.pause();endingAudio=null;}setBgm("true_ending");},45500,token);
-    cinematicLater(()=>{track.innerHTML='<p>-이세계에 소환되어버린 나무꾼 진엔딩-</p><p class="ending-thanks">플레이해주셔서 감사합니다</p>';track.classList.add("true-ending-thanks");},47500,token);
+    cinematicLater(()=>{track.innerHTML='<p>-이세계로 소환되어버린 나무꾼 진 엔딩-</p><p class="ending-thanks">플레이해 주셔서 감사합니다</p>';track.classList.add("true-ending-thanks");},47500,token);
     cinematicLater(()=>finalizeEnding(actions),52500,token);
   }
 
