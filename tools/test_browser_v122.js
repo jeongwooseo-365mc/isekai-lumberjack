@@ -149,7 +149,7 @@ const server=http.createServer((req,res)=>{
       };
       for(const title of ["지도","제작소","부동산","요리","강화","마이페이지","설정"]){
         await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
-        await page.getByRole("button",{name:title,exact:true}).click();await checkHeader(title==="지도"?"동굴 지도":title);
+        await page.getByRole("button",{name:title,exact:true}).click();await checkHeader(title);
         if(title==="제작소"){
           await page.locator('[data-do="workshop-type"][data-type="secret"]').click();await checkHeader("비밀교환소");
         }
