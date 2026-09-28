@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.2.7";
-  // Explicitly requested for this release only. Set false after ending review.
+  const APP_VERSION = "1.2.8";
+  // Keep the ending review conditions until the user requests their rollback.
   const ENDING_REVIEW_RELEASE = true;
   const ANCIENT_XP = 10000000;
   const ANCIENT = {
@@ -19,6 +19,7 @@
   };
   const isAncient = (place=S.place) => !!ANCIENT[place];
   const inCave = () => S.place==="cave_entrance"||isAncient();
+  const isRestArea = () => S.place==="home"||S.place==="cave_entrance";
   const canWork = () => ["forest","mine","dungeon"].includes(S.place)||isAncient();
   const MAX_LEVEL = 200;
   const SAVE_VERSION = "1.1.0";
@@ -104,8 +105,8 @@
     { id:20, minLevel:90, reward:{key:"dark_blessing",amount:1}, costs:[{key:"tome_ore",min:100,max:400,step:1},{key:"tome_gold",min:100,max:400,step:1},{key:"tome_wood",min:100,max:400,step:1}] },
   ];
 
-  const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"dungeon", ancient_golem:"dungeon", ancient_beast:"dungeon", cave_entrance:"dungeon", map:"map", ending:"ending" };
-  const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집에서 휴식해 주세요.";
+  const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"ancient_world_tree", ancient_golem:"ancient_iron_golem", ancient_beast:"ancient_beast", cave_entrance:"cave_entrance", map:"map", cave_map:"ancient_cave_map", ending:"ending", true_ending:"true_ending" };
+  const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집이나 동굴입구에서 휴식해 주세요.";
   const SFX_FILES = new Set([
     "ui_click","ui_back","ui_confirm","ui_error","auto_on","auto_off","axe_swing","axe_hit","tree_break",
     "pickaxe_swing","pickaxe_hit","ore_break","sword_swing","sword_hit","monster_defeat","fish_cast","water_splash",
@@ -260,10 +261,14 @@
     if(validSecretExchange(S.secretExchange,windowId)){
       if(S.secretExchange.balanceVersion!==APP_VERSION){
         let changed=false;
-        for(const offer of S.secretExchange.offers){
-          if(offer.templateId===10||offer.reward.key==="food2"){
-            changed=true;offer.reward.amount=1;
-            for(const cost of offer.costs)cost.amount=Math.max(1400,Math.min(2600,cost.amount*2));
+        const [major=0,minor=0,patch=0]=String(S.secretExchange.balanceVersion||"0.0.0").split(".").map(part=>Number(part)||0);
+        const needsFoodRebalance=major<1||(major===1&&(minor<2||(minor===2&&patch<7)));
+        if(needsFoodRebalance){
+          for(const offer of S.secretExchange.offers){
+            if(offer.templateId===10||offer.reward.key==="food2"){
+              changed=true;offer.reward.amount=1;
+              for(const cost of offer.costs)cost.amount=Math.max(1400,Math.min(2600,cost.amount*2));
+            }
           }
         }
         S.secretExchange.balanceVersion=APP_VERSION;if(save)persist(false);return changed;
@@ -641,13 +646,13 @@
     const from=Number(S.lastSeen)||now;
     const elapsed=Math.max(0,Math.floor((now-from)/1000));
     if(elapsed<=0) { if(!Number.isFinite(Number(S.lastSeen)))S.lastSeen=now; return 0; }
-    if(S.place==="home"&&S.resting) {
+    if(isRestArea()&&S.resting) {
       S.restElapsed=(S.restElapsed||0)+elapsed;
       const ticks=elapsed;S.restProgress=0;
       if(ticks>0 && S.hp<maxHp()) {
         const before=S.hp; S.hp=Math.min(maxHp(),S.hp+ticks*HOUSES[S.house].heal);
         const gained=S.hp-before;
-        if(gained>0&&(elapsed>1||S.hp>=maxHp()))addLog(`${HOUSES[S.house].name}에서 체력 ${gained} 회복.`,"assets/ui/realestate.png","good",now);
+        if(gained>0&&(elapsed>1||S.hp>=maxHp()))addLog(`${S.place==="home"?HOUSES[S.house].name:"동굴입구"}에서 체력 ${gained} 회복.`,"assets/ui/realestate.png","good",now);
       }
     } else if(S.place==="pond") {
       if(S.auto) {
@@ -696,7 +701,7 @@
     const now=Date.now(),exchangeChanged=ensureSecretExchange(now);
     if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();
     document.querySelectorAll?.("[data-secret-countdown]").forEach(button=>button.textContent=`교환하기 · ${secretCountdownLabel(now)}`);
-    if(S.place==="home"&&S.resting) {
+    if(isRestArea()&&S.resting) {
       dom.fishingStatus.textContent=`휴식 중 · ${elapsedLabel(S.restElapsed)} 경과 · 1초당 +${HOUSES[S.house].heal}`;
       return;
     }
@@ -707,7 +712,7 @@
   }
 
   function toggleResting() {
-    if(S.place!=="home")return;
+    if(!isRestArea())return;
     S.resting=!S.resting;S.auto=S.resting;S.restProgress=0;S.restElapsed=0;
     if(S.resting) {
       addLog(`휴식 시작: 1초마다 체력 ${HOUSES[S.house].heal} 회복.`,"assets/ui/realestate.png","good");
@@ -719,8 +724,7 @@
   }
 
   function toggleAuto() {
-    if(S.place==="cave_entrance"){S.auto=false;render();return;}
-    if(S.place==="home") { toggleResting(); return; }
+    if(isRestArea()) { toggleResting(); return; }
     if(S.hp<=0) { S.auto=false; toast(EXHAUSTED_MESSAGE); playSfx("exhausted"); render(); return; }
     S.auto=!S.auto; playSfx(S.auto?"auto_on":"auto_off");
     addLog(`오토 ${S.auto?"시작":"종료"}.`,"assets/ui/auto.png",S.auto?"good":"");
@@ -731,7 +735,7 @@
   function travel(place, grade=0) {
     const leavingBoss=isAncient()&&S.target&&S.target.hp>0;
     const oldBoss=leavingBoss?ANCIENT[S.place]:null;
-    if(S.place==="home"&&place!=="home"){S.resting=false;S.auto=false;}
+    if(isRestArea()&&place!==S.place){S.resting=false;S.auto=false;}
     S.place=place; S.grade=grade; S.target=null; S.restProgress=0;S.restElapsed=0;
     if(place!=="pond") S.fishState=null;
     if(place==="home"||place==="cave_entrance") {S.auto=false;S.resting=false;}
@@ -805,13 +809,13 @@
 
   function render(save=false) {
     renderScene(); renderHud();
-    dom.autoButton.disabled=S.place==="cave_entrance";
+    dom.autoButton.disabled=false;
     dom.autoState.textContent=S.auto?"ON":"OFF"; dom.autoButton.classList.toggle("on",S.auto);
     if(save) persist();
   }
 
   function renderScene() {
-    const bg=S.place==="home"?`home${S.house+1}.png`:S.place==="pond"?"pond.png":isAncient()?`${ANCIENT[S.place].bg}.png`:S.place==="cave_entrance"?"cave_entrance.png":`${S.place}${S.grade+1}.png`;
+    const bg=S.place==="home"?`home${S.house+1}.png`:S.place==="pond"?"pond.png":isAncient()?`${ANCIENT[S.place].bg}.png`:S.place==="cave_entrance"?"cave_entrance_camp.png":`${S.place}${S.grade+1}.png`;
     dom.scene.style.backgroundImage=`url("assets/bg/${bg}")`;
     dom.placeTitle.textContent=currentPlaceName();
     dom.scene.classList.toggle("worldtree-scene",isAncient());
@@ -819,12 +823,10 @@
     const hasTarget=canWork();
     dom.targetArea.classList.toggle("hidden",!hasTarget);dom.targetHud.classList.toggle("hidden",!hasTarget);
     dom.bobber.classList.add("hidden"); dom.fishingLine.classList.add("hidden"); dom.fishingStatus.classList.add("hidden"); dom.character.classList.remove("fishing","casting","waiting","lifting","rewarding");
-    if(S.place==="home") {
+    if(isRestArea()) {
       dom.character.src=S.resting?"assets/sprites/rest/rest.png":"assets/sprites/rest/idle.png";
       dom.tapHint.textContent=S.resting?"화면을 탭하면 휴식 종료":"화면을 탭해 휴식 시작";
       if(S.resting){dom.fishingStatus.classList.remove("hidden");updateActivityStatus();}
-    } else if(S.place==="cave_entrance") {
-      dom.character.src="assets/sprites/rest/idle.png";dom.tapHint.textContent="";
     } else if(S.place==="pond") {
       dom.character.classList.add("fishing");
       const now=Date.now();
@@ -994,8 +996,10 @@
   function openView(type,args={},stack=true) {
     setMenuOpen(false);
     if(stack) overlayStack.push({type,args}); else overlayStack[overlayStack.length-1]={type,args};
-    dom.overlay.classList.add("open"); dom.overlay.setAttribute("aria-hidden","false"); setBgm("map"); renderView();
+    dom.overlay.classList.add("open"); dom.overlay.setAttribute("aria-hidden","false"); setBgm(overlayBgmKey()); renderView();
   }
+
+  function overlayBgmKey() { return inCave()&&overlayStack[overlayStack.length-1]?.type==="map"?"cave_map":"map"; }
 
   function renderView() {
     const view=overlayStack[overlayStack.length-1]; if(!view) return closeOverlay();
@@ -1012,7 +1016,7 @@
 
   function overlayBack() {
     playSfx("ui_back");
-    if(overlayStack.length>1){overlayStack.pop();renderView();}else closeOverlay();
+    if(overlayStack.length>1){overlayStack.pop();setBgm(overlayBgmKey());renderView();}else closeOverlay();
   }
 
   function renderMap() {
@@ -1223,7 +1227,7 @@
   }
   function startBossPrelude() {
     clearCinematicTimers();const token=cinematicToken;
-    showScreen("bossPrelude");$("bossChallenge").classList.add("hidden");setBgm("dungeon");
+    showScreen("bossPrelude");$("bossChallenge").classList.add("hidden");setBgm("cave_entrance");
     cinematicLater(()=>$("bossChallenge").classList.remove("hidden"),BOSS_PRELUDE_MS,token);
   }
   function startFinalBattle() {
@@ -1267,6 +1271,7 @@
     $("endingCreditsTrack").innerHTML=normalCreditsHtml;
     $("endingCreditsTrack").classList.remove("true-ending-thanks");
     dom.ending.classList.remove("true-ending");
+    $("normalEndingHint").classList.toggle("hidden",S.endingKind==="true");
     if(S.endingKind==="true"){startTrueEnding(token);return;}
     $("endingReturnImage").src="assets/bg/ending_return.png";$("endingFinalImage").src="assets/bg/ending.png";
     S.ended=true;S.auto=false;S.fishState=null;persist();showScreen("ending");setBgm("ending");
@@ -1284,16 +1289,16 @@
   }
   function startTrueEnding(token) {
     S.ended=true;S.auto=false;S.fishState=null;persist();showScreen("ending");
-    if(bgm)bgm.pause();bgmKey="";dom.ending.classList.add("true-ending");
+    setBgm("true_ending");dom.ending.classList.add("true-ending");
     const images=$("endingImages"),first=$("endingReturnImage"),second=$("endingFinalImage"),track=$("endingCreditsTrack"),actions=$("endingActions");
     first.classList.remove("active");second.classList.remove("active");images.classList.remove("fade-out");actions.classList.add("hidden");track.classList.remove("roll");
-    const lines=["어렴풋이 알았다.","난 이미 죽음의 문턱에 있고, 지금의 나는 꺼져가는 의식 어딘가라는걸.","문 너머는 원래 세상이 아니다. 원래세상 같은 허상이다.","도끼질를 하는것만이 내 낙이었다.","영원히 반복될 이 허상을 이제 보내주자."];
+    const lines=["어렴풋이 알았다.","난 이미 죽음의 문턱에 있고, 지금의 나는 꺼져가는 의식 어딘가라는걸.","문 너머는 원래 세상이 아니다. 원래세상 같은 허상이다.","도끼질을 하는것만이 내 낙이었다.<br>그래서인지 허상인 이 공간에서 나는 내 낙을 갈구해 왔던 것 같다.","영원히 반복될 이 허상을 이제 보내주자."];
     track.innerHTML=lines.map(line=>`<p>${line}</p>`).join("");
     cinematicLater(()=>track.classList.add("roll"),100,token);
-    cinematicLater(()=>{track.classList.remove("roll");track.innerHTML="";first.src="assets/bg/true_ending_hospital.png";first.classList.add("active");endingSound("heartbeat",true);},25500,token);
+    cinematicLater(()=>{track.classList.remove("roll");track.innerHTML="";first.src="assets/bg/true_ending_hospital.png";first.classList.add("active");if(bgm)bgm.pause();endingSound("heartbeat",true);},25500,token);
     cinematicLater(()=>{first.src="assets/bg/true_ending_monitor_alive.png";},33500,token);
     cinematicLater(()=>{first.src="assets/bg/true_ending_monitor_flatline.png";endingSound("flatline");},39500,token);
-    cinematicLater(()=>{images.classList.add("fade-out");if(endingAudio){endingAudio.pause();endingAudio=null;}},45500,token);
+    cinematicLater(()=>{images.classList.add("fade-out");if(endingAudio){endingAudio.pause();endingAudio=null;}setBgm("true_ending");},45500,token);
     cinematicLater(()=>{track.innerHTML='<p>-이세계에 소환되어버린 나무꾼 진엔딩-</p><p class="ending-thanks">플레이해주셔서 감사합니다</p>';track.classList.add("true-ending-thanks");},47500,token);
     cinematicLater(()=>finalizeEnding(actions),52500,token);
   }
@@ -1360,12 +1365,11 @@
     if(tutorialStage)return;
     if(event.target.closest("button")||dom.overlay.classList.contains("open"))return;
     if(menuOpen){setMenuOpen(false);return;}
-    if(S.place==="home") {toggleResting();return;}
+    if(isRestArea()) {toggleResting();return;}
     if(S.place==="pond") {
       if(S.fishState){dom.bobber.style.animation="none";void dom.bobber.offsetWidth;dom.bobber.style.animation="bob .22s ease-in-out 2 alternate";setTimeout(()=>dom.bobber.style.animation="",500);}else startFishing(false);
       return;
     }
-    if(S.place==="cave_entrance")return;
     if(actionLocked)return;workAction(false);
   }
 
@@ -1416,9 +1420,9 @@
     settleOffline(Date.now());const exchangeChanged=ensureSecretExchange(Date.now(),false);
     if(dom.play.classList.contains("active")) {
       if(S.ended)startEnding();
-      else {render();if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();startLoops();setBgm(dom.overlay.classList.contains("open")?"map":S.place);persist(false);}
+      else {render();if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();startLoops();setBgm(dom.overlay.classList.contains("open")?overlayBgmKey():S.place);persist(false);}
     } else if(dom.intro.classList.contains("active"))setBgm("title");
-    else if(dom.ending.classList.contains("active")){if(S.endingKind!=="true")setBgm("ending");else if(endingAudio)endingAudio.play().catch(()=>{});}
+    else if(dom.ending.classList.contains("active")){if(S.endingKind!=="true")setBgm("ending");else if(endingAudio)endingAudio.play().catch(()=>{});else setBgm("true_ending");}
   }
 
   function bindEvents() {
@@ -1540,6 +1544,7 @@
       selectRecipe:(index)=>{selectedRecipe=Math.max(0,Math.min(RECIPES.length-1,Number(index)||0));},
       selectFood:(index)=>{selectedFoodIndex=Number(index);selectedGearId=null;},
       sceneAction,
+      audioState:()=>({bgmKey,bgmSrc:bgm?.src,bgmPaused:bgm?.paused,endingSrc:endingAudio?.src,endingPaused:endingAudio?.paused}),
       discardSelected,
       startFinalBattle,
       startEnding,

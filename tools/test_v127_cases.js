@@ -2,7 +2,13 @@
 module.exports=async function({game:g,element,localStorage,assert:a}){
  let s;const reset=(eggs=0)=>{g.returnToIntroAfterEnding();g.replaceMeta({endingSeen:eggs>0,endingCount:eggs,lastEndingId:null});s=g.freshState();s.openingSeen=true;s.tutorialSeen=true;g.replaceState(s);};
  reset();a.equal(g.constants.MAX_LEVEL,200);a.equal(g.constants.ANCIENT_XP,10000000);a(g.constants.ENDING_REVIEW_RELEASE);a(g.refreshWorldGateUnlock());a.equal(s.lv,1);a(s.reviewGateUnlocked);
- a.deepEqual({...g.doorRequirements()},{token_wood:0,token_ore:0,token_gold:0});g.startFinalBattle();a.equal(s.place,'cave_entrance');a.equal(s.target,null);const hp=s.hp;g.sceneAction({target:{closest:()=>null}});g.toggleAuto();a.equal(s.hp,hp);a.equal(s.auto,false);
+ a.deepEqual({...g.doorRequirements()},{token_wood:0,token_ore:0,token_gold:0});g.startFinalBattle();a.equal(s.place,'cave_entrance');a.equal(s.target,null);
+ a(g.audioState().bgmSrc.endsWith('/cave_entrance.ogg'));
+ s.hp=100;s.house=2;g.sceneAction({target:{closest:()=>null}});a(s.resting&&s.auto);a(element('scene').style.backgroundImage.includes('cave_entrance_camp.png'));
+ s.lastSeen=100000;g.settleOffline(103000);a.equal(s.hp,115,'cave rest uses the selected house heal per second, including offline time');
+ s.house=4;g.settleOffline(105000);a.equal(s.hp,315,'changing the designated house also changes cave rest healing');
+ g.toggleAuto();a(!s.resting&&!s.auto);g.sceneAction({target:{closest:()=>null}});a(s.resting);g.travel('worldtree');a(!s.resting&&!s.auto,'leaving the cave rest area stops healing');
+ for(const [place,track] of [['worldtree','ancient_world_tree'],['ancient_golem','ancient_iron_golem'],['ancient_beast','ancient_beast']]){g.travel(place);a(g.audioState().bgmSrc.endsWith(`/${track}.ogg`));}
  for(const [place,weapon,kind]of [['worldtree','axe','wood'],['ancient_golem','pickaxe','ore'],['ancient_beast','sword','gold']]){
   reset();s.lv=150;s.hp=100000;g.travel(place);a.equal(g.currentWeaponType(),weapon);a.equal(s.target.xp,10000000);s.target.hp=1;g.workAction(true);a.equal(s.xp,10000000);a.equal(g.stackCount(`token_${kind}`),1);a.equal(s.ended,false);a.equal(s.target.hp,10000000);
   s.target.hp=123;g.travel('cave_entrance');g.travel(place);a.equal(s.target.hp,10000000);
@@ -19,6 +25,7 @@ module.exports=async function({game:g,element,localStorage,assert:a}){
  reset();for(const [i,fish,heal]of [[2,'숭어',1000],[3,'연어',2000],[4,'랍스터',5000]]){s.lv=200;s.hp=0;s.fish[fish]=100;g.selectRecipe(i);g.cookSelected();a.equal(s.fish[fish],0);g.consumeFood(i,{simulated:true});a.equal(s.hp,heal);}
  const offer=g.constants.SECRET_EXCHANGE_TEMPLATES.find(o=>o.id===10);a.equal(offer.reward.amount,1);a.equal(offer.costs[0].min,1400);a.equal(offer.costs[0].max,2600);
  s.lv=90;s.secretExchange={windowId:g.secretWindowId(),offers:[0,1,2,3].map(i=>({id:`old${i}`,templateId:10,reward:{key:'food2',amount:4},costs:[{key:'wood0',amount:1000}],claimed:i===0}))};g.ensureSecretExchange(Date.now(),false);a(s.secretExchange.offers[0].claimed);a.equal(s.secretExchange.offers[0].costs[0].amount,2000);g.ensureSecretExchange(Date.now(),false);a.equal(s.secretExchange.offers[0].costs[0].amount,2000);
+ s.secretExchange.balanceVersion='1.2.7';g.ensureSecretExchange(Date.now(),false);a.equal(s.secretExchange.offers[0].costs[0].amount,2000);
  reset();const axe=s.gear.find(x=>x.type==='axe');axe.tier=4;axe.enh=10;a.equal(g.enhChance(axe),50);a.equal(g.maxEnhancement(axe),11);const old=g.gearPower(axe);axe.enh=11;a.equal(g.gearPower(axe)-old,20000);axe.enh=10;
  g.addStack('transcendence',3);g.selectEnhance(axe.id);s.rngSeed=0;const stones=JSON.stringify(s.stones);g.enhanceNow();g.enhanceNow();await new Promise(r=>setTimeout(r,4100));a.equal(axe.enh,11);a.equal(g.stackCount('transcendence'),2);a.equal(JSON.stringify(s.stones),stones);g.renderEnhance();a(element('overlayContent').innerHTML.includes('최대 강화입니다'));g.enhanceNow();a.equal(g.stackCount('transcendence'),2);
  const fail=Array.from({length:10000},(_,i)=>i).find(seed=>((Math.imul(1664525,seed)+1013904223)>>>0)/4294967296>.99);
