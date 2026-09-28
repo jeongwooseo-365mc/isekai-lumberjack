@@ -187,10 +187,12 @@ const server=http.createServer((req,res)=>{
           await page.getByRole("button",{name:"오래된 문",exact:true}).click();
           assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/ancient_cave_map.ogg'));
           await page.getByRole("button",{name:"문 열기",exact:true}).click();
+          assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/ancient_cave_map.ogg'));
           await page.getByRole("button",{name:"귀환한다",exact:true}).click();
           assert(await page.evaluate(()=>window.__GAME_DEBUG__.state().ended));
           if(eggs){
             assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/true_ending.ogg'));
+            assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('도끼질을 하는 것만이 내 낙이었다.'));
             assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('그래서인지 허상인 이 공간에서 나는 내 낙을 갈구해 왔던 것 같다.'));
             await page.clock.runFor(25600);assert((await page.locator('#endingReturnImage').getAttribute('src')).includes('hospital'));
             assert(await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmPaused));
@@ -204,7 +206,8 @@ const server=http.createServer((req,res)=>{
             assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/true_ending.ogg'));
             assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.audioState().endingSrc),undefined);
             await page.clock.runFor(7000);
-          }else{assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('일반 엔딩'));await page.clock.runFor(41200);}
+            assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('진 엔딩'));
+          }else{assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('알 수 없는 문'));assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('일반 엔딩'));await page.clock.runFor(41200);}
           await page.waitForFunction(()=>!document.getElementById('endingActions').classList.contains('hidden'));
           assert.equal(await page.locator('#normalEndingHint').isVisible(),!eggs);
           if(!eggs)assert.equal(await page.locator('#normalEndingHint').innerText(),'*엔딩을 한 번 더 보면 진 엔딩을 달성할 수 있습니다.');
