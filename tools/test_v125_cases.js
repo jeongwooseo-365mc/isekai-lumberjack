@@ -9,9 +9,9 @@ module.exports=async function testV125({game,element,localStorage,assert}){
   s.res.gold=[0,49998,9999];assert.equal(game.canPay(game.constants.HOUSES[4].cost),false);s.res.gold[1]++;assert(game.pay(game.constants.HOUSES[4].cost));assert.deepEqual(Array.from(s.res.gold),[0,0,0]);
   s.hp=20775;game.migrateBalance();assert.equal(s.hp,18975,"old armor HP is capped at the new maximum");
   for(const place of ["forest","mine","dungeon"]){
-    s.place=place;s.grade=3;game.newTarget();assert.equal(s.target.xp,13000);game.renderTier(place);assert(element("overlayContent").innerHTML.includes("EXP 13k"));
-    s.target.xp=place==="mine"?15000:10000;s.target.hp=12345;game.migrateBalance();assert.equal(s.target.xp,13000);assert.equal(s.target.hp,12345);
-    const xp=s.xp;game.defeatTarget(Date.now(),false);assert.equal(s.xp-xp,13000,"all top areas award the adjusted XP after migration");
+    s.place=place;s.grade=3;game.newTarget();assert.equal(s.target.xp,20000);game.renderTier(place);assert(element("overlayContent").innerHTML.includes("EXP 20k"));
+    s.target.xp=place==="mine"?15000:10000;s.target.hp=12345;game.migrateBalance();assert.equal(s.target.xp,20000);assert.equal(s.target.hp,12345);
+    const xp=s.xp;game.defeatTarget(Date.now(),false);assert.equal(s.xp-xp,20000,"all top areas award the adjusted XP after migration");
   }
   for(let hour=0;hour<24;hour+=3){
     const at=new Date(2026,8,17,hour,0,0).getTime(),next=new Date(2026,8,17,hour+3,0,0).getTime();

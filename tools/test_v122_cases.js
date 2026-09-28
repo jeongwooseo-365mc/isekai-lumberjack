@@ -4,17 +4,17 @@
 module.exports = async function verifyExpansion({game,assert,element}) {
   let state;
   const reset=()=>{state=game.freshState();game.replaceState(state);return state;};
-  assert.equal(game.constants.MAX_LEVEL,150);
+  assert.equal(game.constants.MAX_LEVEL,200);
   assert.deepEqual({...game.constants.FINAL_BOSS},{hp:10000000,def:20000,reflectMin:75,reflectMax:150});
-  assert.deepEqual({...game.constants.TARGET_STATS[3]},{min:30000,max:45000,def:5000,xp:13000});
+  assert.deepEqual({...game.constants.TARGET_STATS[3]},{min:30000,max:45000,def:5000,xp:20000});
 
   reset();state.lv=99;state.xp=game.needXp()-1;game.addXp(1);
   assert.equal(state.lv,100);assert(state.worldGateUnlocked,"level 100 still unlocks the gate");
   game.renderHud();assert.notEqual(element("xpText").textContent,"MAX");
   game.addXp(game.needXp());assert.equal(state.lv,101,"old cap can be passed");
-  state.lv=149;state.xp=game.needXp()-1;game.addXp(20000);
-  assert.equal(state.lv,150);assert.equal(state.xp,0);game.addXp(1e12);
-  assert.equal(state.lv,150);assert.equal(state.xp,0);game.renderHud();assert.equal(element("xpText").textContent,"MAX");
+  state.lv=199;state.xp=game.needXp()-1;game.addXp(20000);
+  assert.equal(state.lv,200);assert.equal(state.xp,0);game.addXp(1e12);
+  assert.equal(state.lv,200);assert.equal(state.xp,0);game.renderHud();assert.equal(element("xpText").textContent,"MAX");
 
   reset();delete state.tomes;state.lv=100;state.res.wood[2]=4321;
   state.gear[0].tier=4;state.gear[0].enh=7;game.normalizeInventory();
@@ -30,7 +30,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
     assert.equal((html.match(/data-do="travel"/g)||[]).length,4);
     assert(html.includes('data-grade="3"'));assert(!html.includes("disabled"),"all areas are open at level 1");
     game.travel(place,3);assert.equal(state.grade,3);assert.equal(state.lv,1);game.newTarget();
-    assert(state.target.max>=30000&&state.target.max<=45000);assert.equal(state.target.def,5000);assert.equal(state.target.xp,13000);
+    assert(state.target.max>=30000&&state.target.max<=45000);assert.equal(state.target.def,5000);assert.equal(state.target.xp,20000);
     assert(game.targetAsset().endsWith("_top.png"));assert.equal(state.ended,false);
   }
 
@@ -52,12 +52,12 @@ module.exports = async function verifyExpansion({game,assert,element}) {
 
   // Verify actual awarded inventory, quantities and exclusivity through defeatTarget.
   for(const [place,kind]of [["forest","wood"],["mine","ore"],["dungeon","gold"]]){
-    reset();state.place=place;state.grade=3;state.lv=150;state.rngSeed=123456789;
+    reset();state.place=place;state.grade=3;state.lv=200;state.rngSeed=123456789;
     const observed={tome:0,stone:0,resource:0};
     for(let i=0;i<3000;i++){
       state.tomes={wood:0,ore:0,gold:0};state.stones=[0,0,0];
       for(const k of Object.keys(state.res))state.res[k]=[0,0,0];
-      state.target={hp:0,max:30000+(i%3)*7500,def:5000,xp:13000};
+      state.target={hp:0,max:30000+(i%3)*7500,def:5000,xp:20000};
       game.defeatTarget(1000,false);
       const t=state.tomes[kind],s=state.stones[2],r=state.res[kind][2];
       assert.equal(Number(t>0)+Number(s>0)+Number(r>0),1,"exactly one reward category");
@@ -74,7 +74,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
   }
 
   for(const grade of [0,1,2]){
-    reset();state.place="forest";state.grade=grade;state.lv=150;state.rngSeed=23456;
+    reset();state.place="forest";state.grade=grade;state.lv=200;state.rngSeed=23456;
     let lower=0,same=0;
     for(let i=0;i<500;i++){
       state.res.wood=[0,0,0];game.dropResource(i%2,1000,false);
@@ -93,11 +93,11 @@ module.exports = async function verifyExpansion({game,assert,element}) {
     assert(loss>=(place==="worldtree"?76:6)&&loss<=(place==="worldtree"?151:21));
     assert.equal(state.target.hp,initialTarget-1,"defense retains minimum one damage");
     state.hp=2;state.auto=true;state.foods[4]=2;state.equippedFood=4;
-    game.workAction(true,2000);assert.equal(state.hp,400);assert.equal(state.foods[4],1);assert(state.auto);
+    game.workAction(true,2000);assert.equal(state.hp,game.maxHp());assert.equal(state.foods[4],1);assert(state.auto);
     state.hp=2;state.foods[4]=0;state.equippedFood=null;game.workAction(true,3000);
     assert.equal(state.hp,0);assert.equal(state.auto,false);
     state.hp=2;state.target.hp=1;game.workAction(true,4000);
-    assert.equal(state.ended,place==="worldtree","only boss defeat triggers ending, including simultaneous zero HP");
+    assert.equal(state.ended,false,"farming bosses respawn even on simultaneous zero HP");
   }
 
   reset();state.place="forest";state.grade=3;state.hp=5000;state.auto=true;state.rngSeed=54321;game.newTarget();
@@ -111,7 +111,7 @@ module.exports = async function verifyExpansion({game,assert,element}) {
   assert.equal(state.target.hp,5000000);assert.equal(state.target.max,10000000);assert.equal(state.target.def,20000);
   game.migrateBalance();assert.equal(state.target.hp,5000000,"migration is idempotent");
   state.target.hp=1234567;game.migrateBalance();assert.equal(state.target.hp,1234567,"current-version reload does not round HP upward");
-  game.travel("home");game.startFinalBattle();assert.equal(state.target.hp,10000000,"retreat still fully resets boss");
+  game.travel("home");game.travel("worldtree");assert.equal(state.target.hp,10000000,"retreat still fully resets boss");
 
   for(const type of Object.keys(game.constants.GEAR_COST)){
     reset();const cost=game.constants.GEAR_COST[type][4];

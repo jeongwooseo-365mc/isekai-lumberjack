@@ -266,3 +266,20 @@ img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }
 .tier-option.top strong { color: #d5d0eb; }
 .crystal-scene .place-title, .crystal-scene .target-hud { border-color: #aaa0c5aa; background: #171521eb; }
 .crystal-scene .target-image { filter: drop-shadow(0 8px 9px #000b) drop-shadow(0 0 6px #b0a0d033); }
+
+/* Ancient cave retains the existing map dimensions. */
+.cave-map { background-image: url("assets/bg/cave_map.png"); }
+.cave-map .map-point { transform: translate(-50%,-50%); white-space: nowrap; }
+.cave-map .cave-home { left: 50%; top: 85%; }
+.cave-map .cave-worldtree { left: 22%; top: 43%; }
+.cave-map .cave-ancient_golem { left: 56%; top: 22%; }
+.cave-map .cave-ancient_beast { left: 78%; top: 48%; }
+.cave-map .cave-door { left: 24%; top: 10%; }
+.cave-exit { position: absolute; z-index: 3; right: 8px; top: 8px; width: 48px; height: 48px; padding: 2px; border: 1px solid #a59067; border-radius: 8px; background: #161820d9; }
+.cave-exit img { width: 100%; height: 100%; object-fit: contain; }
+.boss-challenge p { font-size: clamp(18px,5vw,25px); line-height: 1.9; letter-spacing: .02em; text-shadow: none; }
+.true-ending .ending-image.active { animation: none; transform: none; transition: none; }
+.true-ending .ending-credits-track.roll { animation-duration: 25s; }
+.true-ending .true-ending-thanks { top: 38%; transform: none; }
+.true-ending .true-ending-thanks p { margin-bottom: 3vh; }
+.true-ending .true-ending-thanks .ending-thanks { margin-top: 5vh; }

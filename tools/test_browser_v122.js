@@ -77,26 +77,25 @@ const server=http.createServer((req,res)=>{
       await page.reload();await page.waitForFunction(()=>window.__GAME_DEBUG__?.state()?.tomes?.wood===80);
       assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().gear[0].enh),7);
       await page.getByRole("button",{name:"게임 시작",exact:true}).click();
-      await page.evaluate(()=>{
-        const g=window.__GAME_DEBUG__,s=g.state();g.startFinalBattle();
-        for(const [type,enh]of [["axe",4],["pickaxe",3],["sword",5]]){const item=s.gear.find(i=>i.id===s.equipped[type]);item.tier=3;item.enh=enh;}
-        g.render();
-      });
-      assert(await page.locator("#autoButton").isDisabled());
-      assert((await page.locator("#character").getAttribute("src")).endsWith("/sword/idle.png"));
-      await page.locator("#scene").click({position:{x:180,y:250}});
-      await page.waitForTimeout(300);
-      assert(await page.evaluate(()=>window.__GAME_DEBUG__.state().target.hp<10000000));
-      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state();s.gear.find(i=>i.id===s.equipped.pickaxe).enh=6;g.render();});
-      assert((await page.locator("#character").getAttribute("src")).endsWith("/pickaxe/idle.png"));
-      await page.screenshot({path:path.join(out,`boss-manual-${width}x${height}.png`)});
-      // Reload a legacy auto-ON boss save: no time or HP may be consumed.
-      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state();s.auto=true;s.lastSeen=Date.now()-60000;localStorage.setItem(g.constants.SAVE_KEY,JSON.stringify(s));});
-      await page.reload();await page.waitForFunction(()=>window.__GAME_DEBUG__?.state()?.place==="worldtree");
-      assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().auto),false);
-      const hpBefore=await page.evaluate(()=>window.__GAME_DEBUG__.state().target.hp);
-      await page.getByRole("button",{name:"게임 시작",exact:true}).click();await page.waitForTimeout(1100);
-      assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().target.hp),hpBefore);
+      await page.evaluate(()=>window.__GAME_DEBUG__.startFinalBattle());
+      await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
+      await page.getByRole("button",{name:"지도",exact:true}).click();
+      await page.screenshot({path:path.join(out,`cave-map-${width}x${height}.png`)});
+      for(const [place,label,type]of [["worldtree","고대 세계수","axe"],["ancient_golem","고대 철골렘","pickaxe"],["ancient_beast","고대 괴수","sword"]]){
+        await page.getByRole("button",{name:label,exact:true}).click();
+        assert(await page.locator("#autoButton").isEnabled());
+        assert((await page.locator("#character").getAttribute("src")).endsWith(`/${type}/idle.png`));
+        await page.locator("#scene").click({position:{x:180,y:250}});await page.waitForTimeout(300);
+        assert(await page.evaluate(()=>window.__GAME_DEBUG__.state().target.hp<10000000));
+        await page.screenshot({path:path.join(out,`${place}-${width}x${height}.png`)});
+        await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
+        await page.getByRole("button",{name:"지도",exact:true}).click();
+      }
+      await page.getByRole("button",{name:"오래된 문",exact:true}).click();
+      assert(await page.locator('[data-do="return-world"]').isEnabled());
+      assert.equal(await page.locator('.requirement-row').count(),4);
+      await page.screenshot({path:path.join(out,`ending-door-${width}x${height}.png`)});
+      await page.locator("#closeButton").click();
       await page.evaluate(()=>{const g=window.__GAME_DEBUG__;g.replaceMeta({endingSeen:true,endingCount:12});g.returnToIntroAfterEnding();g.renderProfile();});
       await page.getByRole("button",{name:"게임 시작",exact:true}).click();
       // Skip only the new-game opening in this UI fixture and inspect the profile stack.
@@ -150,16 +149,49 @@ const server=http.createServer((req,res)=>{
       };
       for(const title of ["지도","제작소","부동산","요리","강화","마이페이지","설정"]){
         await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
-        await page.getByRole("button",{name:title,exact:true}).click();await checkHeader(title);
+        await page.getByRole("button",{name:title,exact:true}).click();await checkHeader(title==="지도"?"동굴 지도":title);
         if(title==="제작소"){
           await page.locator('[data-do="workshop-type"][data-type="secret"]').click();await checkHeader("비밀교환소");
         }
         if(title==="지도"||title==="제작소")await page.screenshot({path:path.join(out,`header-${title==="지도"?"map":"exchange"}-${width}x${height}.png`)});
         await page.locator("#closeButton").click();
       }
+      if(width===390){
+        await page.clock.install();
+        for(const eggs of [0,1]){
+          await page.evaluate(eggs=>{const g=window.__GAME_DEBUG__;g.returnToIntroAfterEnding();g.replaceMeta({endingSeen:eggs>0,endingCount:eggs});const s=g.freshState();s.openingSeen=true;s.tutorialSeen=true;g.replaceState(s);g.renderIntro();},eggs);
+          await page.getByRole("button",{name:"게임 시작",exact:true}).click();
+          await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
+          await page.getByRole("button",{name:"지도",exact:true}).click();
+          await page.getByRole("button",{name:"원래세계로 가는 문",exact:true}).click();
+          await page.waitForFunction(()=>document.getElementById("bossPreludeScreen").classList.contains("active"));
+          assert(!(await page.locator("#confirmDialog").evaluate(el=>el.classList.contains("open"))));
+          await page.clock.runFor(2100);await page.locator("#bossStartButton").click();
+          await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
+          await page.getByRole("button",{name:"지도",exact:true}).click();
+          await page.getByRole("button",{name:"오래된 문",exact:true}).click();
+          await page.getByRole("button",{name:"문 열기",exact:true}).click();
+          await page.getByRole("button",{name:"귀환한다",exact:true}).click();
+          assert(await page.evaluate(()=>window.__GAME_DEBUG__.state().ended));
+          if(eggs){
+            await page.clock.runFor(25600);assert((await page.locator('#endingReturnImage').getAttribute('src')).includes('hospital'));
+            await page.screenshot({path:path.join(out,'true-ending-hospital.png')});
+            await page.clock.runFor(8000);assert((await page.locator('#endingReturnImage').getAttribute('src')).includes('alive'));
+            await page.screenshot({path:path.join(out,'true-ending-monitor-alive.png')});
+            await page.clock.runFor(6000);assert((await page.locator('#endingReturnImage').getAttribute('src')).includes('flatline'));
+            await page.screenshot({path:path.join(out,'true-ending-monitor-flatline.png')});
+            await page.clock.runFor(13000);
+          }else{assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('일반엔딩'));await page.clock.runFor(41200);}
+          await page.waitForFunction(()=>!document.getElementById('endingActions').classList.contains('hidden'));
+          assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.endingCount()),eggs+1);
+          await page.screenshot({path:path.join(out,eggs?'true-ending-complete.png':'normal-ending-complete.png')});
+          await page.getByRole("button",{name:"인트로로",exact:true}).click();
+          assert(await page.locator('#introScreen').evaluate(el=>el.classList.contains('active')));
+        }
+      }
       await context.close();
     }
-    assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, manual boss, strongest equipped weapon, trophy stack, tome/blessing exchange and saved protection stack, all menu headers, named top-area reflection logs\n");
-    console.log("Browser v1.2.6 QA: PASS");
+    assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, ancient bosses, cave map, designated weapons, auto, both ending sequences, trophy stack, tome/blessing exchange and saved protection stack, all menu headers, named top-area reflection logs\n");
+    console.log("Browser v1.2.7 QA: PASS");
   }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});

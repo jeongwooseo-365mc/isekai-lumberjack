@@ -1,8 +1,26 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.2.6";
-  const MAX_LEVEL = 150;
+  const APP_VERSION = "1.2.7";
+  // Explicitly requested for this release only. Set false after ending review.
+  const ENDING_REVIEW_RELEASE = true;
+  const ANCIENT_XP = 10000000;
+  const ANCIENT = {
+    worldtree:{name:"고대 세계수",weapon:"axe",kind:"wood",sprite:"worldtree",bg:"worldtree_cave"},
+    ancient_golem:{name:"고대 철골렘",weapon:"pickaxe",kind:"ore",sprite:"ancient_golem",bg:"ancient_golem_cave"},
+    ancient_beast:{name:"고대 괴수",weapon:"sword",kind:"gold",sprite:"ancient_beast",bg:"ancient_beast_cave"},
+  };
+  const STACK_ITEMS = {
+    blessing:{name:"칠흑의 가호",icon:"dark_blessing",description:"강화 시 파괴 방지"},
+    token_wood:{name:"고대의 증표(목)",icon:"ancient_token_wood",description:"오래된 문을 여는 데 필요한 증표"},
+    token_ore:{name:"고대의 증표(철)",icon:"ancient_token_iron",description:"오래된 문을 여는 데 필요한 증표"},
+    token_gold:{name:"고대의 증표(금)",icon:"ancient_token_gold",description:"오래된 문을 여는 데 필요한 증표"},
+    transcendence:{name:"초월석",icon:"transcendence_stone",description:"신의 장비를 초월하는 데 자동 사용됩니다"},
+  };
+  const isAncient = (place=S.place) => !!ANCIENT[place];
+  const inCave = () => S.place==="cave_entrance"||isAncient();
+  const canWork = () => ["forest","mine","dungeon"].includes(S.place)||isAncient();
+  const MAX_LEVEL = 200;
   const SAVE_VERSION = "1.1.0";
   const SAVE_KEY = "isekai_lumberjack_save_v11";
   const META_KEY = "isekai_lumberjack_meta";
@@ -36,7 +54,7 @@
     { min: 200, max: 400, def: 0, xp: 20 },
     { min: 1000, max: 2000, def: 200, xp: 100 },
     { min: 5000, max: 10000, def: 1000, xp: 1000 },
-    { min: 30000, max: 45000, def: 5000, xp: 13000 },
+    { min: 30000, max: 45000, def: 5000, xp: 20000 },
   ];
 
   const GEAR_COST = {
@@ -58,9 +76,9 @@
   const RECIPES = [
     { name: "생선 수프", icon: "fish_soup", heal: 75, cost: {해초:100,민어:20} },
     { name: "해산물 스튜", icon: "seafood_stew", heal: 225, cost: {해초:100,조개:100,민어:50} },
-    { name: "구운 생선", icon: "grilled_fish", heal: 100, cost: {숭어:10} },
-    { name: "연어 스테이크", icon: "salmon_steak", heal: 200, cost: {연어:10} },
-    { name: "고급 랍스터 정식", icon: "lobster_course", heal: 400, cost: {랍스터:10} },
+    { name: "구운 생선", icon: "grilled_fish", heal: 1000, cost: {숭어:100} },
+    { name: "연어 스테이크", icon: "salmon_steak", heal: 2000, cost: {연어:100} },
+    { name: "고급 랍스터 정식", icon: "lobster_course", heal: 5000, cost: {랍스터:100} },
   ];
 
   const SECRET_EXCHANGE_TEMPLATES = [
@@ -73,7 +91,7 @@
     { id:7, minLevel:60, reward:{key:"ore2",amount:100}, costs:[{key:"ore1",min:1000,max:2000},{key:"gold1",min:1000,max:2000}] },
     { id:8, minLevel:60, reward:{key:"gold2",amount:100}, costs:[{key:"wood1",min:1000,max:2000},{key:"ore1",min:1000,max:2000}] },
     { id:9, minLevel:30, reward:{key:"food0",amount:5}, randomCostKeys:["wood0","ore0","gold0"], costs:[{min:700,max:1300}] },
-    { id:10, minLevel:30, reward:{key:"food2",amount:4}, randomCostKeys:["wood0","ore0","gold0"], costs:[{min:700,max:1300}] },
+    { id:10, minLevel:30, reward:{key:"food2",amount:1}, randomCostKeys:["wood0","ore0","gold0"], costs:[{min:1400,max:2600}] },
     { id:11, minLevel:30, reward:{key:"wood0",amount:1000}, costs:[{key:"wood1",min:100,max:200}] },
     { id:12, minLevel:30, reward:{key:"ore0",amount:1000}, costs:[{key:"ore1",min:100,max:200}] },
     { id:13, minLevel:30, reward:{key:"gold0",amount:1000}, costs:[{key:"gold1",min:100,max:200}] },
@@ -86,13 +104,13 @@
     { id:20, minLevel:90, reward:{key:"dark_blessing",amount:1}, costs:[{key:"tome_ore",min:100,max:400,step:1},{key:"tome_gold",min:100,max:400,step:1},{key:"tome_wood",min:100,max:400,step:1}] },
   ];
 
-  const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"dungeon", map:"map", ending:"ending" };
+  const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"dungeon", ancient_golem:"dungeon", ancient_beast:"dungeon", cave_entrance:"dungeon", map:"map", ending:"ending" };
   const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집에서 휴식해 주세요.";
   const SFX_FILES = new Set([
     "ui_click","ui_back","ui_confirm","ui_error","auto_on","auto_off","axe_swing","axe_hit","tree_break",
     "pickaxe_swing","pickaxe_hit","ore_break","sword_swing","sword_hit","monster_defeat","fish_cast","water_splash",
     "fish_bite","fish_reel","fish_catch","loot_common","loot_rare","purchase","equip","cook","eat","heal",
-    "enhance_start","enhance_success","enhance_fail","gear_break","level_up","exhausted","world_unlock",
+    "heartbeat","flatline","enhance_start","enhance_success","enhance_fail","gear_break","level_up","exhausted","world_unlock",
   ]);
 
   const $ = (id) => document.getElementById(id);
@@ -133,6 +151,8 @@
   let fishingLiftUntil = 0;
   let cinematicToken = 0;
   let cinematicTimers = [];
+  let endingAudio=null;
+  let normalCreditsHtml=null;
   let menuOpen = false;
   let selectedSecretOfferId = null;
   let tutorialStage = "";
@@ -227,7 +247,7 @@
       const costs=template.costs.map(cost=>({key:cost.key||randomKey,amount:randNormStep(cost.min,cost.max,cost.step??10)}));
       return {id:`secret_${windowId}_${template.id}`,templateId:template.id,reward:{...template.reward},costs,claimed:false};
     });
-    return {windowId,offers};
+    return {windowId,offers,balanceVersion:APP_VERSION};
   }
 
   function validSecretExchange(exchange,windowId) {
@@ -237,7 +257,19 @@
   function ensureSecretExchange(now=Date.now(),save=true) {
     if(!S||S.lv<30)return false;
     const windowId=secretWindowId(now);
-    if(validSecretExchange(S.secretExchange,windowId))return false;
+    if(validSecretExchange(S.secretExchange,windowId)){
+      if(S.secretExchange.balanceVersion!==APP_VERSION){
+        let changed=false;
+        for(const offer of S.secretExchange.offers){
+          if(offer.templateId===10||offer.reward.key==="food2"){
+            changed=true;offer.reward.amount=1;
+            for(const cost of offer.costs)cost.amount=Math.max(1400,Math.min(2600,cost.amount*2));
+          }
+        }
+        S.secretExchange.balanceVersion=APP_VERSION;if(save)persist(false);return changed;
+      }
+      return false;
+    }
     S.secretExchange=createSecretExchange(windowId,S.lv);
     selectedSecretOfferId=S.secretExchange.offers[0]?.id||null;
     if(save)persist(false);
@@ -272,7 +304,7 @@
   function enhancementMultiplier(g) {
     if(!g) return 1;
     let multiplier=1;
-    for(let i=1;i<=g.enh;i++) multiplier += g.tier===0 ? .2 : i<=4 ? .2 : i<=7 ? .5 : 2;
+    for(let i=1;i<=g.enh;i++) multiplier += g.tier===0 ? .2 : i<=4 ? .2 : i<=7 ? .5 : i===11&&g.tier===4 ? 4 : 2;
     return multiplier;
   }
   function gearPower(g) {
@@ -281,7 +313,7 @@
   }
   function rodMeanSeconds(g=equipped("rod")) { return Math.max(1,15/enhancementMultiplier(g)); }
   function gearEffectText(g) {
-    if(g.type==="blessing") return "강화 시 파괴 방지";
+    if(STACK_ITEMS[g.type]) return STACK_ITEMS[g.type].description;
     if(g.special) return "엔딩을 목격한 자에게 남는 수상한 징표";
     if(g.type==="rod") return `희귀 어종 확률 상승 · 평균 ${rodMeanSeconds(g).toFixed(1)}초`;
     if(g.type==="armor") return `최대 체력 +${gearPower(g).toLocaleString()}`;
@@ -290,16 +322,27 @@
 
   function maxHp() { return baseMaxHp() + gearPower(equipped("armor")); }
   function currentWeaponType() {
-    if(S.place==="worldtree") return ["axe","pickaxe","sword"].reduce((best,type)=>gearPower(equipped(type))>gearPower(equipped(best))?type:best,"axe");
+    if(isAncient()) return ANCIENT[S.place].weapon;
     return S.place==="forest"?"axe":S.place==="mine"?"pickaxe":S.place==="dungeon"?"sword":null;
   }
   function totalAttack() { const type=currentWeaponType(); return baseAttack() + (type ? gearPower(equipped(type)) : 0); }
   function needXp(level=S.lv) { return Math.round(100*Math.pow(1.1,level-1)); }
-  function gearIcon(g) { return g?.type==="blessing"?"assets/items/dark_blessing.png":g?.special?"assets/items/easter_egg.png":`assets/items/${g.type}_${g.tier}.png`; }
-  function gearDisplayName(g) { return g?.type==="blessing"?"칠흑의 가호":g?.special?"이스터에그":`${TIERS[g.tier]} ${GEAR_LABEL[g.type]}${g.enh?` +${g.enh}`:""}`; }
+  function gearIcon(g) { return STACK_ITEMS[g?.type]?`assets/items/${STACK_ITEMS[g.type].icon}.png`:g?.special?"assets/items/easter_egg.png":`assets/items/${g.type}_${g.tier}.png`; }
+  function gearDisplayName(g) { return STACK_ITEMS[g?.type]?STACK_ITEMS[g.type].name:g?.special?"이스터에그":`${TIERS[g.tier]} ${GEAR_LABEL[g.type]}${g.enh?` +${g.enh}`:""}`; }
   function blessingCount() { return capped(S.gear.find(g=>g.type==="blessing")?.count); }
-  function specialStackCount(g) { return g.type==="blessing"?blessingCount():endingCount(); }
-  function specialDescription(g) { return g.type==="blessing"?"보유시 자동 사용되어 장비 파괴를 1회 방지합니다.":"엔딩 완료 영구 징표"; }
+  function specialStackCount(g) { return STACK_ITEMS[g.type]?stackCount(g.type):endingCount(); }
+  function stackCount(type) { return capped(S.gear.find(g=>g.type===type)?.count); }
+  function addStack(type,amount) {
+    // Guaranteed boss drops may create a special stack even with a full ordinary bag.
+    let item=S.gear.find(g=>g.type===type);
+    if(!item){item={id:newId(type),type,tier:0,enh:0,special:true,count:0};S.gear.push(item);}
+    item.count=capped(stackCount(type)+amount);markGearUnseen(item.id);return item;
+  }
+  function consumeStack(type,amount=1) {
+    const item=S.gear.find(g=>g.type===type);if(!item||stackCount(type)<amount)return false;
+    item.count-=amount;if(item.count===0){S.gear=S.gear.filter(g=>g!==item);markGearSeen(item.id);}return true;
+  }
+  function specialDescription(g) { return g.type==="blessing"?"보유시 자동 사용되어 장비 파괴를 1회 방지합니다.":STACK_ITEMS[g.type]?.description||"엔딩 완료 영구 징표"; }
   function consumeBlessing() {
     const item=S.gear.find(g=>g.type==="blessing");
     if(!item||blessingCount()<=0)return false;
@@ -328,16 +371,18 @@
   function elapsedLabel(seconds) { const total=Math.max(0,Math.floor(seconds||0));if(total<60)return `${total}초`;if(total<3600)return `${Math.floor(total/60)}분 ${total%60}초`;return `${Math.floor(total/3600)}시간 ${Math.floor(total%3600/60)}분`; }
   function hasAllDivineGear() { return Object.keys(GEAR_LABEL).every(type=>S.gear.some(g=>g.type===type&&g.tier===4)); }
   function refreshWorldGateUnlock(announce=false) {
+    if(!ENDING_REVIEW_RELEASE&&S.reviewGateUnlocked){S.worldGateUnlocked=S.lv>=100||hasAllDivineGear();delete S.reviewGateUnlocked;}
     if(S.worldGateUnlocked) return true;
-    if(S.lv>=100||hasAllDivineGear()) {
+    if(S.lv>=(ENDING_REVIEW_RELEASE?1:100)||hasAllDivineGear()) {
       S.worldGateUnlocked=true;
+      if(ENDING_REVIEW_RELEASE&&S.lv<100&&!hasAllDivineGear())S.reviewGateUnlocked=true;
       if(announce) { addLog("원래세계로 가는 문이 열렸습니다.","assets/ui/map.png","rare"); playSfx("world_unlock"); }
     }
     return !!S.worldGateUnlocked;
   }
   function normalizeInventory() {
-    S.gear=S.gear.filter(g=>g.type!=="blessing"||capped(g.count)>0);
-    for(const item of S.gear.filter(g=>g.type==="blessing")){item.count=capped(item.count);item.special=true;}
+    S.gear=S.gear.filter(g=>!STACK_ITEMS[g.type]||capped(g.count)>0);
+    for(const item of S.gear.filter(g=>STACK_ITEMS[g.type])){item.count=capped(item.count);item.special=true;}
     S.tomes=Object.fromEntries(Object.keys(TOME_LABEL).map(kind=>[kind,capped(S.tomes?.[kind])]));
     for(const kind of ["wood","ore","gold"]) S.res[kind]=(S.res[kind]||[0,0,0]).map(capped);
     S.stones=(S.stones||[0,0,0]).map(capped);
@@ -380,25 +425,26 @@
   function currentPlaceName() {
     if(S.place==="home") return HOUSES[S.house].name;
     if(S.place==="pond") return "연못";
-    if(S.place==="worldtree") return "칠흑의 세계수";
+    if(isAncient()) return ANCIENT[S.place].name;
+    if(S.place==="cave_entrance") return "동굴입구";
     return `${GRADES[S.grade]} ${PLACE_LABEL[S.place]}`;
   }
 
   function targetXp(grade=S.grade) { return TARGET_STATS[grade].xp; }
   function newTarget() {
-    if(S.place==="worldtree") { S.target={hp:FINAL_BOSS.hp,max:FINAL_BOSS.hp,def:FINAL_BOSS.def,xp:0}; return; }
+    if(isAncient()) { S.target={hp:FINAL_BOSS.hp,max:FINAL_BOSS.hp,def:FINAL_BOSS.def,xp:ANCIENT_XP}; return; }
     const stat=TARGET_STATS[S.grade], hp=randNorm(stat.min,stat.max);
     S.target={hp,max:hp,def:stat.def,xp:targetXp()};
   }
 
   function targetAsset() {
-    if(S.place==="worldtree") return "assets/targets/worldtree.png";
+    if(isAncient()) return `assets/targets/${ANCIENT[S.place].sprite}.png`;
     const kind=S.place==="forest"?"tree":S.place==="mine"?"ore":"monster";
     return `assets/targets/${kind}_${AREA_ASSET_GRADES[S.grade]}.png`;
   }
 
   function targetLabel() {
-    if(S.place==="worldtree") return "최종 세계수";
+    if(isAncient()) return ANCIENT[S.place].name;
     if(S.place==="forest") return `${GRADES[S.grade]} 나무`;
     if(S.place==="mine") return `${GRADES[S.grade]} 광맥`;
     return ["고블린","마물","드래곤","흑수정 드래곤"][S.grade];
@@ -489,7 +535,24 @@
     if(visual) { lootBurst(icon,Math.min(count,18)); playSfx(count>=10?"loot_rare":"loot_common"); }
   }
 
+  function ancientDropKind(roll,hasEgg=endingCount()>0) {
+    return !hasEgg||roll<.30?"token":roll<.80?"tome":roll<.90?"blessing":"transcendence";
+  }
+  function defeatAncient(at=Date.now(),visual=true) {
+    const boss=ANCIENT[S.place],drop=ancientDropKind(rand());
+    addXp(ANCIENT_XP,at);let count=1,icon,name;
+    if(drop==="tome"){
+      count=randNorm(50,100);S.tomes[boss.kind]=capped(S.tomes[boss.kind]+count);icon=tomeIcon(boss.kind);name=TOME_LABEL[boss.kind];
+    }else{
+      const type=drop==="token"?`token_${boss.kind}`:drop;
+      const item=addStack(type,1);icon=gearIcon(item);name=gearDisplayName(item);
+    }
+    addLog(`${boss.name} 처치! ${name} ${count}개 획득!`,icon,"rare",at);
+    if(visual){lootBurst(icon,Math.min(count,12));playSfx("loot_rare");}
+    newTarget();
+  }
   function defeatTarget(at=Date.now(), visual=true) {
+    if(isAncient()){defeatAncient(at,visual);return;}
     const hpRatio=(S.target.max-TARGET_STATS[S.grade].min)/(TARGET_STATS[S.grade].max-TARGET_STATS[S.grade].min);
     addXp(S.target.xp,at);
     if(S.grade===3){
@@ -509,14 +572,14 @@
     const reflected=randNorm(min,max);
     S.hp=Math.max(0,S.hp-reflected);
     if(!simulated){
-      addLog(`${S.place==="worldtree"?"세계수":targetLabel()}의 반사 피해 ${reflected.toLocaleString()}.`,"assets/ui/energy.png","warn",at);
+      addLog(`${targetLabel()}의 반사 피해 ${reflected.toLocaleString()}.`,"assets/ui/energy.png","warn",at);
       setTimeout(animateReflection,150);
     }
     if(S.hp<=0)handleExhaustion(simulated,at);
   }
 
   function workAction(simulated=false, at=Date.now()) {
-    if(!["forest","mine","dungeon","worldtree"].includes(S.place)) return;
+    if(!canWork()||S.ended) return;
     if(S.hp<=0&&!handleExhaustion(simulated,at)) {
       if(!simulated) { toast(EXHAUSTED_MESSAGE); playSfx("exhausted"); }
       S.auto=false; return;
@@ -526,13 +589,9 @@
     const damage=Math.max(1,totalAttack()-S.target.def);
     S.target.hp-=damage;
     if(!simulated) animateAction();
-    if(S.place==="worldtree") {
+    if(isAncient()) {
       reflectDamage(FINAL_BOSS.reflectMin,FINAL_BOSS.reflectMax,simulated,at);
-      if(S.target.hp<=0) {
-        S.target.hp=0; S.auto=false; S.ended=true;
-        addLog("칠흑의 세계수를 베어 쓰러뜨렸습니다.","assets/targets/worldtree.png","rare",at);
-        if(!simulated) { playSfx("tree_break"); persist(); setTimeout(startEnding,850); }
-      }
+      if(S.target.hp<=0)defeatAncient(at,!simulated);
     } else {
       if(S.grade===3)reflectDamage(TOP_REFLECTION.min,TOP_REFLECTION.max,simulated,at);
       if(S.target.hp<=0)defeatTarget(at,!simulated);
@@ -579,7 +638,6 @@
   }
 
   function settleOffline(now=Date.now()) {
-    if(S.place==="worldtree")S.auto=false;
     const from=Number(S.lastSeen)||now;
     const elapsed=Math.max(0,Math.floor((now-from)/1000));
     if(elapsed<=0) { if(!Number.isFinite(Number(S.lastSeen)))S.lastSeen=now; return 0; }
@@ -602,7 +660,7 @@
           startFishing(true,cursor);
         }
       }
-    } else if(S.auto && ["forest","mine","dungeon"].includes(S.place)) {
+    } else if(S.auto && canWork()) {
       const actions=Math.min(elapsed,200000);
       for(let i=0;i<actions&&S.auto&&S.hp>0&&!S.ended;i++)workAction(true,from+(i+1)*1000);
     }
@@ -616,7 +674,7 @@
     const elapsed=settleOffline(Date.now());
     if(elapsed<=0)return;
     if(S.ended){startEnding();return;}
-    if(S.auto&&["forest","mine","dungeon","worldtree"].includes(S.place)&&beforeHp>S.hp&&beforeTargetHp!==S.target?.hp)animateAction();
+    if(S.auto&&canWork()&&beforeHp>S.hp&&beforeTargetHp!==S.target?.hp)animateAction();
     render();scheduleFishing();persist(false);
   }
 
@@ -661,7 +719,7 @@
   }
 
   function toggleAuto() {
-    if(S.place==="worldtree"){S.auto=false;render();return;}
+    if(S.place==="cave_entrance"){S.auto=false;render();return;}
     if(S.place==="home") { toggleResting(); return; }
     if(S.hp<=0) { S.auto=false; toast(EXHAUSTED_MESSAGE); playSfx("exhausted"); render(); return; }
     S.auto=!S.auto; playSfx(S.auto?"auto_on":"auto_off");
@@ -671,13 +729,14 @@
   }
 
   function travel(place, grade=0) {
-    const leavingWorldtree=S.place==="worldtree"&&place!=="worldtree"&&S.target&&S.target.hp>0;
+    const leavingBoss=isAncient()&&S.target&&S.target.hp>0;
+    const oldBoss=leavingBoss?ANCIENT[S.place]:null;
     if(S.place==="home"&&place!=="home"){S.resting=false;S.auto=false;}
     S.place=place; S.grade=grade; S.target=null; S.restProgress=0;S.restElapsed=0;
     if(place!=="pond") S.fishState=null;
-    if(place==="home") {S.auto=false;S.resting=false;}
-    if(leavingWorldtree) addLog("세계수의 상처가 어둠 속에서 완전히 회복되었습니다.","assets/targets/worldtree.png","warn");
-    addLog(`${place==="home"?HOUSES[S.house].name:place==="pond"?"연못":`${GRADES[grade]} ${PLACE_LABEL[place]}`}으로 이동.`,"assets/ui/map.png");
+    if(place==="home"||place==="cave_entrance") {S.auto=false;S.resting=false;}
+    if(leavingBoss) addLog(`${oldBoss.name}의 상처가 어둠 속에서 완전히 회복되었습니다.`,`assets/targets/${oldBoss.sprite}.png`,"warn");
+    addLog(`${currentPlaceName()}으로 이동.`,"assets/ui/map.png");
     setMenuOpen(false);closeOverlay(); startLoops(); render(); setBgm(place); persist();
   }
 
@@ -745,26 +804,27 @@
   }
 
   function render(save=false) {
-    if(S.place==="worldtree")S.auto=false;
     renderScene(); renderHud();
-    dom.autoButton.disabled=S.place==="worldtree";
+    dom.autoButton.disabled=S.place==="cave_entrance";
     dom.autoState.textContent=S.auto?"ON":"OFF"; dom.autoButton.classList.toggle("on",S.auto);
     if(save) persist();
   }
 
   function renderScene() {
-    const bg=S.place==="home"?`home${S.house+1}.png`:S.place==="pond"?"pond.png":S.place==="worldtree"?"worldtree_cave.png":`${S.place}${S.grade+1}.png`;
+    const bg=S.place==="home"?`home${S.house+1}.png`:S.place==="pond"?"pond.png":isAncient()?`${ANCIENT[S.place].bg}.png`:S.place==="cave_entrance"?"cave_entrance.png":`${S.place}${S.grade+1}.png`;
     dom.scene.style.backgroundImage=`url("assets/bg/${bg}")`;
     dom.placeTitle.textContent=currentPlaceName();
-    dom.scene.classList.toggle("worldtree-scene",S.place==="worldtree");
+    dom.scene.classList.toggle("worldtree-scene",isAncient());
     dom.scene.classList.toggle("crystal-scene",S.grade===3&&["forest","mine","dungeon"].includes(S.place));
-    const hasTarget=["forest","mine","dungeon","worldtree"].includes(S.place);
+    const hasTarget=canWork();
     dom.targetArea.classList.toggle("hidden",!hasTarget);dom.targetHud.classList.toggle("hidden",!hasTarget);
     dom.bobber.classList.add("hidden"); dom.fishingLine.classList.add("hidden"); dom.fishingStatus.classList.add("hidden"); dom.character.classList.remove("fishing","casting","waiting","lifting","rewarding");
     if(S.place==="home") {
       dom.character.src=S.resting?"assets/sprites/rest/rest.png":"assets/sprites/rest/idle.png";
       dom.tapHint.textContent=S.resting?"화면을 탭하면 휴식 종료":"화면을 탭해 휴식 시작";
       if(S.resting){dom.fishingStatus.classList.remove("hidden");updateActivityStatus();}
+    } else if(S.place==="cave_entrance") {
+      dom.character.src="assets/sprites/rest/idle.png";dom.tapHint.textContent="";
     } else if(S.place==="pond") {
       dom.character.classList.add("fishing");
       const now=Date.now();
@@ -939,7 +999,7 @@
 
   function renderView() {
     const view=overlayStack[overlayStack.length-1]; if(!view) return closeOverlay();
-    const renderers={map:renderMap,tier:renderTier,workshop:renderWorkshop,realestate:renderEstate,cooking:renderCooking,enhance:renderEnhance,profile:renderProfile,settings:renderSettings};
+    const renderers={map:renderMap,tier:renderTier,workshop:renderWorkshop,realestate:renderEstate,cooking:renderCooking,enhance:renderEnhance,profile:renderProfile,settings:renderSettings,door:renderOldDoor};
     renderers[view.type](view.args||{});
   }
 
@@ -957,6 +1017,10 @@
 
   function renderMap() {
     setOverlayHeader("지도");
+    if(inCave()){
+      setOverlayHeader("동굴 지도");
+      dom.overlayContent.innerHTML=`<div class="map-area cave-map"><button class="cave-exit" data-do="travel" data-place="home" aria-label="집으로 나가기"><img src="assets/ui/cave_exit.png" alt="나가기"></button><button class="map-point cave-door" data-do="old-door">오래된 문</button><button class="map-point cave-home" data-do="travel" data-place="cave_entrance">동굴입구</button>${Object.entries(ANCIENT).map(([place,boss])=>`<button class="map-point cave-${place}" data-do="travel" data-place="${place}">${boss.name}</button>`).join("")}</div>`;return;
+    }
     refreshWorldGateUnlock();
     const world=S.worldGateUnlocked?`<button class="map-point world" data-do="world">원래세계로 가는 문</button>`:"";
     dom.overlayContent.innerHTML=`<div class="map-area">${world}<button class="map-point home" data-do="travel" data-place="home">집</button><button class="map-point forest" data-do="tier" data-place="forest">숲</button><button class="map-point pond" data-do="travel" data-place="pond">연못</button><button class="map-point mine" data-do="tier" data-place="mine">광산</button><button class="map-point dungeon" data-do="tier" data-place="dungeon">던전</button></div>`;
@@ -1059,31 +1123,35 @@
   }
 
   function enhRequirements(g) {
+    if(g.tier===4&&g.enh===10)return {transcendence:1};
     const step=g.enh+1;
     if(g.tier<=1)return{0:step}; if(g.tier===2)return{0:step,1:step}; if(g.tier===3)return{1:step,2:step}; return{2:step*2};
   }
-  function enhChance(g){return 95-g.enh*5;}
+  function enhChance(g){return g.tier===4&&g.enh===10?50:95-g.enh*5;}
+  function maxEnhancement(g){return g.tier===4?11:10;}
+  function enhancementHave(key){return key==="transcendence"?stackCount(key):S.stones[key];}
 
   function renderEnhance() {
     const candidates=S.gear.filter(g=>!g.special);let g=gearById(selectedEnhanceId);if(!g||g.special){g=candidates[0];selectedEnhanceId=g?.id||null;}
     setOverlayHeader("강화");
     if(!g){dom.overlayContent.innerHTML="<p>강화할 장비가 없습니다.</p>";return;}
-    const req=g.enh<10?enhRequirements(g):{},ok=Object.entries(req).every(([k,v])=>S.stones[k]>=v);
-    const reqHtml=Object.entries(req).map(([grade,need])=>`<div class="requirement-row ${S.stones[grade]<need?"missing":""}"><img src="${stoneIcon(+grade)}" alt=""><span>${GRADES[grade]} 강화의 돌</span><b>${S.stones[grade].toLocaleString()} / ${need}</b></div>`).join("");
-    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.enh>=10?"최대 강화":`성공 확률 ${enhChance(g)}%`}<br>${g.tier===0?"실패해도 보존":blessingCount()>0?`실패 시 칠흑의 가호 자동 사용 · 보유 ${blessingCount().toLocaleString()}개`:"실패 시 장비 파괴"}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${g.enh>=10?`<div class="requirement-row"><img src="assets/ui/enhance.png" alt=""><span>최대 강화입니다</span><b>+10</b></div>`:reqHtml}<button class="primary-button wide-action" data-do="enhance-now" ${g.enh>=10||!ok||enhancing?"disabled":""}>${enhancing?"강화 중입니다…":"강화 시작"}</button></div></div><div class="section-title">보유 장비</div><div class="item-list">${candidates.map(item=>`<button class="item-card ${item.id===g.id?"selected":""}" data-do="enhance-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${gearEffectText(item)}</small></span></button>`).join("")}</div>`;
+    const req=g.enh<maxEnhancement(g)?enhRequirements(g):{},ok=Object.entries(req).every(([k,v])=>enhancementHave(k)>=v);
+    const reqHtml=Object.entries(req).map(([grade,need])=>`<div class="requirement-row ${enhancementHave(grade)<need?"missing":""}"><img src="${grade==="transcendence"?"assets/items/transcendence_stone.png":stoneIcon(+grade)}" alt=""><span>${grade==="transcendence"?"초월석":`${GRADES[grade]} 강화의 돌`}</span><b>${enhancementHave(grade).toLocaleString()} / ${need}</b></div>`).join("");
+    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.enh>=maxEnhancement(g)?"최대 강화":`성공 확률 ${enhChance(g)}%`}<br>${g.tier===0?"실패해도 보존":blessingCount()>0?`실패 시 칠흑의 가호 자동 사용 · 보유 ${blessingCount().toLocaleString()}개`:"실패 시 장비 파괴"}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${g.enh>=maxEnhancement(g)?`<div class="requirement-row"><img src="assets/ui/enhance.png" alt=""><span>최대 강화입니다</span><b>+${maxEnhancement(g)}</b></div>`:reqHtml}<button class="primary-button wide-action" data-do="enhance-now" ${g.enh>=maxEnhancement(g)||!ok||enhancing?"disabled":""}>${enhancing?"강화 중입니다…":"강화 시작"}</button></div></div><div class="section-title">보유 장비</div><div class="item-list">${candidates.map(item=>`<button class="item-card ${item.id===g.id?"selected":""}" data-do="enhance-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${gearEffectText(item)}</small></span></button>`).join("")}</div>`;
   }
 
   function enhanceNow() {
-    const g=gearById(selectedEnhanceId);if(!g||g.special||g.enh>=10||enhancing)return;const req=enhRequirements(g);
-    if(!Object.entries(req).every(([k,v])=>S.stones[k]>=v)){playSfx("ui_error");return;}
-    for(const[k,v]of Object.entries(req))S.stones[k]-=v;enhancing=true;playSfx("enhance_start");renderEnhance();toast("강화 중입니다…",3900);persist();
+    const g=gearById(selectedEnhanceId);if(!g||g.special||g.enh>=maxEnhancement(g)||enhancing)return;const req=enhRequirements(g);
+    if(!Object.entries(req).every(([k,v])=>enhancementHave(k)>=v)){playSfx("ui_error");return;}
+    for(const[k,v]of Object.entries(req)){if(k==="transcendence")consumeStack(k,v);else S.stones[k]-=v;}enhancing=true;playSfx("enhance_start");renderEnhance();toast("강화 중입니다…",3900);persist();
     setTimeout(()=>{
+      if(!S.gear.includes(g)||S.ended){enhancing=false;return;}
       const success=rand()*100<enhChance(g);enhancing=false;
       if(success){g.enh++;markGearUnseen(g.id);addLog(`${TIERS[g.tier]} ${GEAR_LABEL[g.type]} +${g.enh} 강화 성공!`,gearIcon(g),"good");playSfx("enhance_success");toast(`강화 성공! +${g.enh}`);}
       else if(g.tier===0){addLog(`허름한 ${GEAR_LABEL[g.type]} 강화 실패. 장비는 보존되었습니다.`,gearIcon(g),"warn");playSfx("enhance_fail");toast("강화 실패 · 장비 보존");}
       else if(consumeBlessing()){addLog(`${gearDisplayName(g)} 강화 실패. 칠흑의 가호 1개를 사용하여 장비 파괴를 막았습니다.`,"assets/items/dark_blessing.png","good");playSfx("enhance_fail");toast("칠흑의 가호 사용 · 장비 보존");}
       else {const label=`${TIERS[g.tier]} ${GEAR_LABEL[g.type]}${g.enh?` +${g.enh}`:""}`;S.gear=S.gear.filter(x=>x.id!==g.id);markGearSeen(g.id);if(S.equipped[g.type]===g.id){const replacement=S.gear.filter(x=>x.type===g.type).sort((a,b)=>gearPower(b)-gearPower(a))[0];S.equipped[g.type]=replacement?.id||null;if(g.type==="armor")S.hp=Math.min(S.hp,maxHp());}selectedEnhanceId=null;addLog(`${label} 강화 실패. 장비가 파괴되었습니다.`,gearIcon(g),"warn");playSfx("gear_break");toast("강화 실패 · 장비 파괴");}
-      renderEnhance();render();persist();
+      if(dom.overlay.classList.contains("open"))renderView();render();persist();
     },4000);
   }
 
@@ -1146,24 +1214,41 @@
     dom.overlayContent.innerHTML=`<div class="settings-group"><label><span>BGM</span><input type="range" min="0" max="100" value="${Math.round(S.settings.bgm*100)}" data-setting="bgm"><b>${Math.round(S.settings.bgm*100)}%</b></label><label><span>효과음</span><input type="range" min="0" max="100" value="${Math.round(S.settings.sfx*100)}" data-setting="sfx"><b>${Math.round(S.settings.sfx*100)}%</b></label></div><div class="settings-actions"><button class="danger-button" data-do="quit">게임 종료</button><button class="danger-button" data-do="reset">세이브 초기화</button></div><p class="section-title">진행 상황은 자동 저장됩니다 · 버전 ${APP_VERSION}</p>`;
   }
 
-  function clearCinematicTimers() { cinematicToken++; for(const timer of cinematicTimers) clearTimeout(timer); cinematicTimers=[]; }
+  function clearCinematicTimers() { if(endingAudio){endingAudio.pause();endingAudio=null;} cinematicToken++; for(const timer of cinematicTimers) clearTimeout(timer); cinematicTimers=[]; }
   function cinematicLater(callback,delay,token=cinematicToken) { const timer=setTimeout(()=>{if(token===cinematicToken)callback();},delay);cinematicTimers.push(timer);return timer; }
 
   async function worldConfirm() {
-    const yes=await showConfirm("원래세계로 귀환","원래세계로 가면 이세계로 다시는 돌아올 수 없습니다.\n계속하시겠습니까?","귀환한다");
-    if(!yes)return;
+    if(!refreshWorldGateUnlock())return;
     S.auto=false;S.fishState=null;await persist();closeOverlay();startBossPrelude();
   }
-
   function startBossPrelude() {
     clearCinematicTimers();const token=cinematicToken;
     showScreen("bossPrelude");$("bossChallenge").classList.add("hidden");setBgm("dungeon");
     cinematicLater(()=>$("bossChallenge").classList.remove("hidden"),BOSS_PRELUDE_MS,token);
   }
-
   function startFinalBattle() {
-    clearCinematicTimers();S.place="worldtree";S.grade=2;S.auto=false;S.fishState=null;newTarget();
-    addLog("칠흑의 동굴에서 최종 세계수와 마주했습니다.","assets/targets/worldtree.png","rare");showScreen("play");render();startLoops();setBgm("worldtree");persist();
+    clearCinematicTimers();showScreen("play");travel("cave_entrance");
+  }
+  function doorRequirements() {
+    const amount=ENDING_REVIEW_RELEASE?0:endingCount()>0?100:1;
+    return {token_wood:amount,token_ore:amount,token_gold:amount};
+  }
+  function canEnterEnding() {return Object.entries(doorRequirements()).every(([type,n])=>stackCount(type)>=n);}
+  function renderOldDoor() {
+    setOverlayHeader("오래된 문");
+    const rows=Object.entries(doorRequirements()).map(([type,n])=>`<div class="requirement-row ${stackCount(type)<n?"missing":""}"><img src="assets/items/${STACK_ITEMS[type].icon}.png" alt=""><span>${STACK_ITEMS[type].name}</span><b>${stackCount(type).toLocaleString()} / ${n}</b></div>`).join("");
+    const egg=endingCount()>0?`<div class="requirement-row"><img src="assets/items/easter_egg.png" alt=""><span>이스터에그</span><b>${endingCount().toLocaleString()} / 1</b></div>`:"";
+    dom.overlayContent.innerHTML=`<div class="detail-card"><h3>원래세계로 가는 오래된 문</h3><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${egg}${rows}<button class="primary-button wide-action" data-do="return-world" ${canEnterEnding()&&!enhancing?"":"disabled"}>문 열기</button></div></div>`;
+  }
+  async function returnThroughDoor() {
+    if(!inCave()||S.ended||enhancing||!canEnterEnding())return;
+    const runId=S.runId;
+    const yes=await showConfirm("원래세계로 귀환","원래세계로 가면 이세계로 다시는 돌아올 수 없습니다.\n계속하시겠습니까?","귀환한다");
+    if(!yes||runId!==S.runId||S.ended||enhancing||!canEnterEnding())return;
+    S.endingKind=endingCount()>0?"true":"normal";
+    for(const [type,n]of Object.entries(doorRequirements()))if(n>0)consumeStack(type,n);
+    // The permanent Easter egg is an ownership requirement, not a consumable.
+    closeOverlay();startEnding();
   }
 
   function startOpeningStory() {
@@ -1176,7 +1261,14 @@
   }
 
   function startEnding() {
+    if(enhancing)return;
     clearCinematicTimers();const token=cinematicToken;
+    if(normalCreditsHtml===null)normalCreditsHtml=$("endingCreditsTrack").innerHTML;
+    $("endingCreditsTrack").innerHTML=normalCreditsHtml;
+    $("endingCreditsTrack").classList.remove("true-ending-thanks");
+    dom.ending.classList.remove("true-ending");
+    if(S.endingKind==="true"){startTrueEnding(token);return;}
+    $("endingReturnImage").src="assets/bg/ending_return.png";$("endingFinalImage").src="assets/bg/ending.png";
     S.ended=true;S.auto=false;S.fishState=null;persist();showScreen("ending");setBgm("ending");
     const images=$("endingImages"),first=$("endingReturnImage"),second=$("endingFinalImage"),track=$("endingCreditsTrack"),actions=$("endingActions");
     images.classList.remove("fade-out");first.classList.add("active");second.classList.remove("active");track.classList.remove("roll");actions.classList.add("hidden");
@@ -1184,6 +1276,26 @@
     cinematicLater(()=>track.classList.add("roll"),ENDING_CREDITS_DELAY_MS,token);
     cinematicLater(()=>images.classList.add("fade-out"),ENDING_SCENE_MS*2,token);
     cinematicLater(()=>finalizeEnding(actions),ENDING_CREDITS_DELAY_MS+ENDING_CREDITS_MS+ENDING_ACTION_DELAY_MS,token);
+  }
+
+  function endingSound(name,loop=false) {
+    if(endingAudio)endingAudio.pause();
+    endingAudio=new Audio(`assets/audio/sfx/${name}.ogg`);endingAudio.loop=loop;endingAudio.volume=Math.min(1,S.settings.sfx);endingAudio.play().catch(()=>{});
+  }
+  function startTrueEnding(token) {
+    S.ended=true;S.auto=false;S.fishState=null;persist();showScreen("ending");
+    if(bgm)bgm.pause();bgmKey="";dom.ending.classList.add("true-ending");
+    const images=$("endingImages"),first=$("endingReturnImage"),second=$("endingFinalImage"),track=$("endingCreditsTrack"),actions=$("endingActions");
+    first.classList.remove("active");second.classList.remove("active");images.classList.remove("fade-out");actions.classList.add("hidden");track.classList.remove("roll");
+    const lines=["어렴풋이 알았다.","난 이미 죽음의 문턱에 있고, 지금의 나는 꺼져가는 의식 어딘가라는걸.","문 너머는 원래 세상이 아니다. 원래세상 같은 허상이다.","도끼질를 하는것만이 내 낙이었다.","영원히 반복될 이 허상을 이제 보내주자."];
+    track.innerHTML=lines.map(line=>`<p>${line}</p>`).join("");
+    cinematicLater(()=>track.classList.add("roll"),100,token);
+    cinematicLater(()=>{track.classList.remove("roll");track.innerHTML="";first.src="assets/bg/true_ending_hospital.png";first.classList.add("active");endingSound("heartbeat",true);},25500,token);
+    cinematicLater(()=>{first.src="assets/bg/true_ending_monitor_alive.png";},33500,token);
+    cinematicLater(()=>{first.src="assets/bg/true_ending_monitor_flatline.png";endingSound("flatline");},39500,token);
+    cinematicLater(()=>{images.classList.add("fade-out");if(endingAudio){endingAudio.pause();endingAudio=null;}},45500,token);
+    cinematicLater(()=>{track.innerHTML='<p>-이세계에 소환되어버린 나무꾼 진엔딩-</p><p class="ending-thanks">플레이해주셔서 감사합니다</p>';track.classList.add("true-ending-thanks");},47500,token);
+    cinematicLater(()=>finalizeEnding(actions),52500,token);
   }
 
   async function finalizeEnding(actions) {
@@ -1253,6 +1365,7 @@
       if(S.fishState){dom.bobber.style.animation="none";void dom.bobber.offsetWidth;dom.bobber.style.animation="bob .22s ease-in-out 2 alternate";setTimeout(()=>dom.bobber.style.animation="",500);}else startFishing(false);
       return;
     }
+    if(S.place==="cave_entrance")return;
     if(actionLocked)return;workAction(false);
   }
 
@@ -1269,6 +1382,8 @@
     if(action==="travel")travel(el.dataset.place,+(el.dataset.grade||0));
     else if(action==="tier")openView("tier",{place:el.dataset.place});
     else if(action==="world")worldConfirm();
+    else if(action==="old-door")openView("door");
+    else if(action==="return-world")returnThroughDoor();
     else if(action==="workshop-type"){selectedWorkshop.type=el.dataset.type;selectedWorkshop.tier=1;renderWorkshop();}
     else if(action==="workshop-tier"){selectedWorkshop.tier=+el.dataset.tier;renderWorkshop();}
     else if(action==="secret-offer"){selectedSecretOfferId=el.dataset.id;renderSecretExchange();}
@@ -1293,7 +1408,7 @@
 
   function pauseForBackground() {
     if(!S)return;
-    settleOffline(Date.now());persist(false);if(bgm)bgm.pause();
+    settleOffline(Date.now());persist(false);if(bgm)bgm.pause();if(endingAudio)endingAudio.pause();
   }
 
   function resumeFromBackground() {
@@ -1303,7 +1418,7 @@
       if(S.ended)startEnding();
       else {render();if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();startLoops();setBgm(dom.overlay.classList.contains("open")?"map":S.place);persist(false);}
     } else if(dom.intro.classList.contains("active"))setBgm("title");
-    else if(dom.ending.classList.contains("active"))setBgm("ending");
+    else if(dom.ending.classList.contains("active")){if(S.endingKind!=="true")setBgm("ending");else if(endingAudio)endingAudio.play().catch(()=>{});}
   }
 
   function bindEvents() {
@@ -1323,11 +1438,12 @@
 
   function migrateBalance() {
     S.hp=Math.min(S.hp,maxHp());
+    if(isAncient()&&S.target)S.target.xp=ANCIENT_XP;
     if(["forest","mine","dungeon"].includes(S.place)&&S.grade===3&&S.target)S.target.xp=targetXp();
     // Keep an unfinished saved boss fight at the same health percentage.
-    if(S.place==="worldtree"&&!S.ended&&S.target&&(S.target.max!==FINAL_BOSS.hp||S.target.def!==FINAL_BOSS.def)){
+    if(isAncient()&&!S.ended&&S.target&&(S.target.max!==FINAL_BOSS.hp||S.target.def!==FINAL_BOSS.def)){
       const ratio=Math.max(0,Math.min(1,S.target.hp/S.target.max));
-      S.target={hp:Math.ceil(ratio*FINAL_BOSS.hp),max:FINAL_BOSS.hp,def:FINAL_BOSS.def,xp:0};
+      S.target={hp:Math.ceil(ratio*FINAL_BOSS.hp),max:FINAL_BOSS.hp,def:FINAL_BOSS.def,xp:ANCIENT_XP};
     }
   }
 
@@ -1342,7 +1458,6 @@
     } else S=freshState();
     S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;if(typeof S.tutorialSeen!=="boolean")S.tutorialSeen=!!S.openingSeen;S.secretExchange=S.secretExchange||null;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();migrateBalance();refreshWorldGateUnlock();ensureSecretExchange(Date.now(),false);
     S.runId=S.runId||newId("run");
-    if(S.place==="worldtree")S.auto=false;
     if(endingCount()>0&&!S.gear.some(g=>g.type==="easteregg"))S.gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
     if(!S.logs.length)addLog("이세계에서 눈을 떴습니다.");
     bindEvents();renderIntro();showScreen("intro");
@@ -1356,6 +1471,7 @@
       flushSaveQueue: () => saveQueue,
       replaceMeta: (next) => { M = next; },
       freshState,
+      ancientDropKind, defeatAncient, stackCount, addStack, consumeStack, doorRequirements, canEnterEnding, renderOldDoor, returnThroughDoor, worldConfirm, enhChance, maxEnhancement, enhRequirements,
       maxHp,
       gearPower,
       enhancementMultiplier,
@@ -1429,7 +1545,7 @@
       startEnding,
       finalizeEnding,
       setMenuOpen,
-      constants:{ENDING_CREDITS_DELAY_MS,ENDING_CREDITS_MS,ENDING_ACTION_DELAY_MS,MAX_LEVEL,ARMOR_HP,TARGET_STATS,TOP_REFLECTION,TOME_LABEL,APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES,SECRET_EXCHANGE_INTERVAL_MS,SECRET_EXCHANGE_OFFER_COUNT,SECRET_EXCHANGE_TEMPLATES},
+      constants:{ANCIENT_XP,ANCIENT,ENDING_REVIEW_RELEASE,ENDING_CREDITS_DELAY_MS,ENDING_CREDITS_MS,ENDING_ACTION_DELAY_MS,MAX_LEVEL,ARMOR_HP,TARGET_STATS,TOP_REFLECTION,TOME_LABEL,APP_VERSION,SAVE_VERSION,SAVE_KEY,MAX_ITEM_COUNT,GEAR_CAPACITY,FINAL_BOSS,ROD_PROBS,GEAR_COST,HOUSES,RECIPES,SECRET_EXCHANGE_INTERVAL_MS,SECRET_EXCHANGE_OFFER_COUNT,SECRET_EXCHANGE_TEMPLATES},
     };
   }
 

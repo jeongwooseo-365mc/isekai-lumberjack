@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.2.6","crystal farming expansion app version");
+    assert.equal(game.constants.APP_VERSION,"1.2.7","crystal farming expansion app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -61,7 +61,7 @@ setTimeout(async()=>{
     assert(Object.values(state.fish).every(v=>v===0));
     assert(state.foods.every(v=>v===0));
     assert.equal(state.equippedFood,null);
-    assert.equal(state.worldGateUnlocked,false,"release build starts with gate locked");
+    assert.equal(state.worldGateUnlocked,true,"review release opens the gate at level one");
     assert.equal(state.settings.bgm,.5,"default BGM volume is 50%");
     assert.equal(state.settings.sfx,.5,"default SFX volume is 50%");
     assert.deepEqual(Array.from(game.constants.ROD_PROBS,row=>Array.from(row)),[[80,19,1,0,0,0],[70,20,8,1.6,.3,.1],[60,25,10,3.4,1.2,.4],[50,20,20,11,3,1],[30,15,25,16,11,4]],"fishing weights match v1.1 balance");
@@ -70,9 +70,9 @@ setTimeout(async()=>{
     assert.deepEqual(Array.from(game.constants.RECIPES,r=>({name:r.name,heal:r.heal,cost:{...r.cost}})),[
       {name:"생선 수프",heal:75,cost:{해초:100,민어:20}},
       {name:"해산물 스튜",heal:225,cost:{해초:100,조개:100,민어:50}},
-      {name:"구운 생선",heal:100,cost:{숭어:10}},
-      {name:"연어 스테이크",heal:200,cost:{연어:10}},
-      {name:"고급 랍스터 정식",heal:400,cost:{랍스터:10}},
+      {name:"구운 생선",heal:1000,cost:{숭어:100}},
+      {name:"연어 스테이크",heal:2000,cost:{연어:100}},
+      {name:"고급 랍스터 정식",heal:5000,cost:{랍스터:100}},
     ],"recipe healing and tenfold material costs match v1.1.4 balance");
     assert.equal(game.constants.MAX_ITEM_COUNT,99999,"all materials use the expanded five-digit cap");
     assert.equal(game.constants.GEAR_CAPACITY,40,"combined inventory supports forty slots");
@@ -143,7 +143,7 @@ setTimeout(async()=>{
 
     state=game.freshState();game.replaceState(state);state.foods[3]=2;state.hp=0;game.selectFood(3);game.equipSelectedFood();assert.equal(state.equippedFood,3);game.renderProfile();assert(element("overlayContent").innerHTML.includes("연어 스테이크 x2"));game.renderHud();assert.equal((element("equippedGrid").innerHTML.match(/class="equip-slot/g)||[]).length,6,"HUD includes five gear slots and one food slot");assert(element("equippedGrid").innerHTML.includes("x2"));
     assert(element("overlayContent").innerHTML.includes("장착 해제"),"equipped food offers an unequip action");assert(!element("overlayContent").innerHTML.includes("즉시먹기"),"equipped food hides immediate eating");game.unequipSelectedFood();assert.equal(state.equippedFood,null,"food can be unequipped without being consumed");game.renderProfile();assert(element("overlayContent").innerHTML.includes("즉시먹기"));
-    game.eatSelectedFood();assert.equal(state.foods[3],1);assert.equal(state.hp,200,"immediate eating uses the updated recovery amount");
+    game.eatSelectedFood();assert.equal(state.foods[3],1);assert.equal(state.hp,600,"immediate eating uses the updated recovery amount");
 
     state=game.freshState();game.replaceState(state);state.res.wood[0]=99998;game.normalizeInventory();state.res.wood[0]+=50;game.normalizeInventory();assert.equal(state.res.wood[0],99999,"resources cap at 99999");
 
@@ -161,7 +161,7 @@ setTimeout(async()=>{
     state=game.freshState();game.replaceState(state);game.renderProfile();const shabbyCount=state.gear.length;await game.discardSelected();assert.equal(state.gear.length,shabbyCount,"shabby gear cannot be discarded");
 
     state=game.freshState();game.replaceState(state);state.place="worldtree";state.hp=100000;state.target={hp:1,max:10000000,def:20000,xp:0};game.workAction(true,1000);
-    assert.equal(state.ended,true,"defeating world tree completes game");assert(state.hp<100000,"world tree reflects damage");
+    assert.equal(state.ended,false,"ancient boss defeat does not trigger ending");assert(state.hp<100000,"world tree reflects damage");
 
     game.renderWorkshop();assert.equal(element("overlayTitle").textContent,"제작소");assert(element("overlayContent").innerHTML.includes("제작하기"));
     game.renderEstate();assert.equal(element("overlayTitle").textContent,"부동산");
@@ -206,6 +206,7 @@ setTimeout(async()=>{
     localStorage.setItem("isekai_lumberjack_save_v11","temporary ending save");const actions=element("endingActions");actions.classList.add("hidden");await game.finalizeEnding(actions);assert.equal(localStorage.getItem("isekai_lumberjack_save_v11"),null,"completed ending deletes ordinary save");assert.equal(JSON.parse(localStorage.getItem("isekai_lumberjack_meta")).endingSeen,true,"ending trophy flag persists separately");assert(!actions.classList.contains("hidden"),"ending actions appear after cleanup");
     await require("./test_v124_cases")({game,element,localStorage,assert});
     await require("./test_v125_cases")({game,element,localStorage,assert});
+    await require("./test_v127_cases")({game,element,localStorage,assert});
     console.log("game logic smoke tests: OK");
     process.exit(0);
   } catch(error) { console.error(error.stack||error); process.exit(1); }

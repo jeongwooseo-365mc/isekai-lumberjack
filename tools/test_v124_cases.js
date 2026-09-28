@@ -8,19 +8,12 @@ module.exports=async function testV124({game,element,localStorage,assert}){
   const axe=state.gear.find(g=>g.type==="axe"),pickaxe=state.gear.find(g=>g.type==="pickaxe"),sword=state.gear.find(g=>g.type==="sword");
   for(const g of [axe,pickaxe,sword])g.tier=3;
   axe.enh=4;pickaxe.enh=3;sword.enh=5;
-  game.render();assert.equal(game.currentWeaponType(),"sword");assert(element("character").src.includes("/sword/idle.png"));
-  const swordAttack=game.totalAttack();
-  pickaxe.enh=6;game.render();assert.equal(game.currentWeaponType(),"pickaxe");assert(game.totalAttack()>swordAttack);assert(element("character").src.includes("/pickaxe/idle.png"));
-  state.target.def=0;
-  const before=state.target.hp,expected=Math.max(1,game.totalAttack()-state.target.def);
-  game.workAction(true);assert.equal(before-state.target.hp,expected,"boss damage uses the strongest equipped weapon");
-  state.equipped.pickaxe=null;game.render();assert.equal(game.currentWeaponType(),"sword","unequipped stronger items are ignored");
-  sword.enh=4;assert.equal(game.currentWeaponType(),"axe","ties use stable axe/pickaxe/sword priority");
-  state.auto=true;game.toggleAuto();assert.equal(state.auto,false);assert.equal(element("autoButton").disabled,true);
-  state.auto=true;state.lastSeen=Date.now()-60000;const bossHp=state.target.hp,hp=state.hp;
-  game.settleOffline(Date.now());assert.equal(state.target.hp,bossHp);assert.equal(state.hp,hp);assert.equal(state.auto,false,"legacy boss auto saves stop without offline attacks");
-  for(const [place,type]of [["forest","axe"],["mine","pickaxe"],["dungeon","sword"]]){
-    state.place=place;game.render();assert.equal(game.currentWeaponType(),type);assert.equal(element("autoButton").disabled,false);
+  game.render();assert.equal(game.currentWeaponType(),"axe");assert(element("character").src.includes("/axe/idle.png"));
+  pickaxe.enh=6;game.render();assert.equal(game.currentWeaponType(),"axe","worldtree keeps its designated axe");
+  for(const [place,type]of [["worldtree","axe"],["ancient_golem","pickaxe"],["ancient_beast","sword"]]){
+    game.travel(place);assert.equal(game.currentWeaponType(),type);assert.equal(element("autoButton").disabled,false);
+    state.hp=100000;state.auto=true;state.lastSeen=Date.now()-10000;const before=state.target.hp;
+    game.settleOffline(Date.now());assert(state.target.hp<before,"ancient bosses accept offline auto attacks");state.auto=false;
   }
 
   // Legacy boolean migrated to one trophy, then the earlier completion added one.
@@ -37,5 +30,5 @@ module.exports=async function testV124({game,element,localStorage,assert}){
   assert.equal(game.endingCount(),4,"a new playthrough awards another permanent trophy");
   game.returnToIntroAfterEnding();await game.init();assert.equal(game.endingCount(),4,"permanent count survives loading without an ordinary save");
   assert.equal(game.state().gear.filter(g=>g.special).length,1);
-  console.log("v1.2.4 recipe, strongest weapon, manual boss, ending timing and permanent count: OK");
+  console.log("v1.2.4 recipe, fixed weapons, auto bosses, ending timing and permanent count: OK");
 };

@@ -1,0 +1,75 @@
+{
+  "mode": "builtin image_gen",
+  "assets": [
+    {
+      "name": "cave_map",
+      "path": "assets/bg/cave_map.png",
+      "prompt": "Use case: stylized-concept. Asset: portrait 9:16 fantasy RPG cave navigation map background. Reference 1 is the existing game's overworld map: match its detailed painterly pixel-art, miniature isometric elevated viewpoint, scale, terrain legibility and tall canvas. Reference 2 supplies the pitch-dark volcanic cave palette. Create a NEW underground cave map with no sky: a small cave entrance resting plaza at bottom center; from a central junction THREE clearly separate broad stone roads lead to distinct spacious destinations: left-middle a gigantic dead ancient tree and roots, upper middle an ancient iron ruin with rusted pillars, right-middle a horned beast's stone den. Also a SMALL ancient closed wooden door in a stone frame farther up, understated, reachable by a narrow winding footpath, not a fourth broad road. Show an intelligible connected cave environment with charcoal basalt, muted steel-blue rim lighting, tiny ember-red fissures, mist, uneven rock walls; paths visibly lighter than surrounding rocks. Leave clear space beside the entrance, three destinations, and door for later UI buttons. Keep top-right corner quiet for a later exit UI icon. No people, no full-size monsters, no drawn UI, NO lettering, labels, numbers, arrows or watermark. All essential landmarks comfortably within central 85% of canvas. Portrait composition matching the reference map."
+    },
+    {
+      "name": "cave_entrance",
+      "path": "assets/bg/cave_entrance.png",
+      "prompt": "Use case: stylized-concept. NEW portrait 9:16 mobile fantasy RPG background, matching the supplied existing dark cave battle background's detailed painterly pixel-art. This is the noncombat cave entrance hub just beyond a portal, an empty quiet cavern vestibule. View from inside looking deeper into darkness: broad open basalt floor in lower half for an overlaid player sprite; three shadowed corridors suggested in the far distance, cold pale bluish mist drifting in, extremely faint ember-red veins in side rocks, an old unlit lantern and weathered stones only at outer edges. Somber, mysterious, anticipatory, colder and calmer than a boss arena. Natural perspective, tall ceiling lost in shadow. Keep center and lower center uncluttered, top-left and upper-center relatively quiet for HUD. No characters, creatures, weapons, tree, interface, text, writing, logos or watermark. Fully opaque scene, match reference portrait canvas."
+    },
+    {
+      "name": "ancient_golem_cave",
+      "path": "assets/bg/ancient_golem_cave.png",
+      "prompt": "Use case: stylized-concept. Create a NEW portrait 9:16 battle background for the ancient iron golem in the same dark cave world as the reference. Match reference detailed painterly pixel-art, scale, perspective and very dark basalt palette with restrained ember-red fissures and cold blue highlights. An abandoned subterranean iron sanctuary: colossal corroded iron support pillars embedded in the SIDE walls, a few old thick chains hanging near the edges, black iron ore seams, distant ruined forge arches without any active furnace. Central and lower half must be spacious EMPTY walkable stone floor for separate boss and player sprite overlays. Keep the middle upper area dark and simple for HUD. Ominous monumental age, not steampunk factory, no bright lava pools. NO golem, person, creature, text, UI, runic letters, logos or watermark. Fully opaque full-bleed portrait scene."
+    },
+    {
+      "name": "ancient_beast_cave",
+      "path": "assets/bg/ancient_beast_cave.png",
+      "prompt": "Create a portrait background asset for a Korean idle fantasy game, same dimensions and detailed painterly pixel-art rendering as reference. Ancient beast cavern arena, within the same cold dark basalt cave as reference. Rugged natural rock den, enormous weathered ancient bones and deep claw marks confined to outer edges, a few dull ember-red cracks, cold blue haze from distant crevices. Mysterious, ominous ancient atmosphere, not purple crystal themed. Large unobstructed central battle area and empty stone floor across lower half, leave room for overlay boss and player sprites. No creature, no person, no UI, no lettering, no frame. Maintain readable mid-dark values rather than featureless black."
+    },
+    {
+      "name": "ancient_golem",
+      "path": "assets/targets/ancient_golem.png",
+      "prompt": "Create one isolated full-body ANCIENT IRON GOLEM boss sprite for the same game as the reference ancient tree sprite. Match its detailed crisp painterly pixel-art style, dark outlines, textured material, ember-red fissures. A huge intimidating humanoid iron construct, broad massive shoulders, thick segmented black iron limbs, battered angular plate armor, ancient oxidized bronze edges, heavy hammer-like fists, small deep red eyes and molten red cracks around chest core. No weapon held, no tree branches, no crystal dragon features. Three-quarter front view slightly facing left, readable imposing squat silhouette, feet visible, centered with generous transparent padding all sides. Genuine transparent alpha background, no background scenery, no ground tile, no text or UI. Square game sprite intended for 512x512 runtime."
+    },
+    {
+      "name": "ancient_beast",
+      "path": "assets/targets/ancient_beast.png",
+      "prompt": "Create one isolated full-body ANCIENT BEHEMOTH boss sprite for the fantasy idle game of the reference. Match detailed crisp textured painterly pixel-art, dark outline edges, strong readable game silhouette. An intimidating primeval horned quadruped beast: massive muscular black charcoal hide, armored bony shoulder and back plates, weathered muted bronze ridges, long curved horns framing a ferocious broad beast head, deep ember-red eyes and sparse red fissures in armor. Heavy clawed forelegs, powerful haunches, short thick tail. Three-quarter front view facing slightly left, threatening stance as if guarding an ancient cave. Distinct non-dragon creature, no wings, no purple crystals, no weapons. Entire body and all feet inside square canvas with transparent padding. Genuine transparent alpha background, no floor, no scenery, no text, no interface. Intended 512x512 boss asset."
+    },
+    {
+      "name": "ancient_token_wood",
+      "path": "assets/items/ancient_token_wood.png",
+      "prompt": "Create a single rare fantasy inventory icon: ANCIENT TOKEN OF WOOD. Same crisp detailed painterly pixel-art quality as reference inventory item, but entirely different object, not egg. A thick ancient circular seal medallion made of dark weathered wood with an antique bronze rim, raised recognizable tree with branching roots emblem in center, small muted emerald-green insets. Symmetrical round silhouette, subtly three-quarter visible thickness, warm brown wood grain, luminous restrained green accents, looks like an ancient boss proof of victory. Large bold central tree symbol readable at tiny inventory size. No letters, no numbers, no runic text, no frame, no background. One complete centered object, generous transparent padding, genuine transparent alpha background. Square art intended for 256x256 runtime inventory."
+    },
+    {
+      "name": "ancient_token_iron",
+      "path": "assets/items/ancient_token_iron.png",
+      "prompt": "Create the IRON variant of this exact ancient token inventory icon family. Preserve the reference round thick seal medallion design, viewing angle, framing, silhouette, rim structure and four diamond-shaped inset positions. Replace wooden backing with weathered dark forged iron, replace golden branching tree emblem with a large bold raised steel ANVIL emblem centered on the disk. Cold silver iron outer rim, blue-gray metallic highlights, four pale icy blue small inset gems. No wood grain, no leaves, no tree, no gold dominant color. Ancient valuable iron golem victory token. Match crisp detailed painterly pixel-art and dark edges. One isolated complete centered medallion with generous padding, genuine transparent alpha background, no text, no letters, no UI or scene. Square inventory asset intended 256x256."
+    },
+    {
+      "name": "ancient_token_gold",
+      "path": "assets/items/ancient_token_gold.png",
+      "prompt": "Create GOLD variant of the ancient token inventory icon family shown in reference. Preserve thick round seal medallion, viewing angle, overall framing, rim structure and four diamond-shaped inset positions. Entire object antique rich gold and darker aged bronze, small amber-gold gem insets. Replace tree emblem with one bold raised heraldic HORNED BEAST HEAD crest, broad fierce face and two curled horns, centered symmetrical recognizable silhouette. No wood, no tree, no anvil. Looks like ancient beast victory token, same crisp detailed painterly pixel-art style, strong dark outline edges, readable at small inventory size. One full centered medallion with transparent padding, genuine transparent alpha background, no lettering, no runes, no UI, no scenery. Square inventory asset intended 256x256 runtime."
+    },
+    {
+      "name": "transcendence_stone",
+      "path": "assets/items/transcendence_stone.png",
+      "prompt": "Create one fantasy inventory item icon: TRANSCENDENCE STONE used to transcend divine equipment. Match reference game's crisp detailed painterly pixel-art rendering and bold readable silhouette. A floating irregular faceted luminous diamond-like elongated crystal, brilliant pale platinum-white core, subtle cyan and lilac refraction on facets, narrow antique gold bands holding fractured floating crystal fragments around central stone. Sacred mysterious power, compact elegant silhouette, restrained bright halo contained around object, visibly a stone not an egg or a medallion. Centered full object with generous padding in square canvas. Genuine transparent alpha background, no opaque background, no floor, no text, no lettering, no runic text, no UI. Intended small 256x256 inventory icon."
+    },
+    {
+      "name": "cave_exit",
+      "path": "assets/ui/cave_exit.png",
+      "prompt": "Create one small fantasy game EXIT UI icon on a genuine transparent alpha background. Crisp pixel-art style compatible with the reference game's aged bronze and dark stone palette, but much simpler and highly readable at 32 pixels. A squat ancient stone doorway with an open bronze wooden door seen slightly in perspective, one large clear bright ivory-gold arrow pointing RIGHT out of the doorway. Strong thick dark outline, limited details, compact square silhouette, no decorative gems, no particles, no text, no letters, no words. Centered full icon with generous transparent padding, no button background or panel. Intended 128x128 UI asset. Arrow must be visually dominant so this reads as return/exit."
+    },
+    {
+      "name": "true_ending_hospital",
+      "path": "assets/bg/true_ending_hospital.png",
+      "prompt": "Create a portrait cinematic story illustration for the TRUE ENDING of the same game as the attached intro image. Match its illustrated painterly anime realism and lightly pixel-textured rendering, same portrait aspect ratio 941:1672. Preserve identity of the REAL-WORLD young adult male protagonist from reference: tousled dark brown hair, clean-shaven face, fair warm skin, same facial proportions, adult slim athletic build; he is NOT a fantasy avatar. Now he lies unconscious peacefully in a modern hospital bed, eyes closed, pale and weakened, wearing a modest pale blue hospital gown, white sheet to chest, nasal oxygen cannula, no injury or gore. Medium-wide three-quarter bedside view showing face clearly, upper body and bed. Quiet cold early-morning blue light through curtains, subdued solemn melancholic mood. A dark gray rectangular patient monitor sits on the RIGHT beside the bed, with a simple green heartbeat waveform on black display; minimal controls, no readable letters or numbers. Folded red-and-black flannel shirt from reference rests on chair in lower-left corner as a discreet identity cue. No doctors, no action, no fantasy objects, no text, no subtitles, no watermark. Respectful cinematic scene of prolonged unconscious hospitalization, not medical instructional image."
+    },
+    {
+      "name": "true_ending_monitor_alive",
+      "path": "assets/bg/true_ending_monitor_alive.png",
+      "prompt": "Create the NEXT cinematic shot after reference hospital scene: a close-up of the EXACT SAME dark gray rectangular bedside patient monitor from the reference, in the same hospital, same cold blue morning light, same painterly anime illustration with subtle pixel texture. Portrait 941:1672 aspect ratio. Camera now tightly frames the entire monitor centered in upper-middle of frame, seen nearly straight on with slight view of left casing side. Screen occupies most of monitor. On black screen show ONE thin bright green ECG waveform across horizontal center, with three clear regular heartbeat peaks, no numbers, no labels, no secondary graph. Preserve monitor design: thick charcoal frame, small square green power indicator lower left, small dark buttons lower edge, cables dropping below, resting on gray bedside cabinet. Softly out of focus background: blue curtain and window light, a small edge of white hospital bedding lower left, discreet white flowers. No people in this close-up, no added text, no captions, no logos. Solemn quiet still cinematic image. This shot will later have an otherwise identical flatline variant, so maintain a clean single waveform display and stable composition."
+    },
+    {
+      "name": "true_ending_monitor_flatline",
+      "path": "assets/bg/true_ending_monitor_flatline.png",
+      "prompt": "Edit this exact image for the next frame of a fictional game's ending. Change ONLY the bright green ECG trace inside the monitor screen: replace the heartbeat peaks with one continuous perfectly straight horizontal green flatline at exactly the same baseline height, extending from the same left start to the same right end. No peaks, no ripples, no heartbeat. Preserve everything else exactly: image dimensions, camera framing, monitor position, casing, buttons, green power light, black screen, subtle screen border, window, curtains, flowers, cables, cabinet, bedding, shadows, lighting, color palette and painterly anime texture. Do not add text, numbers, symbols, people, effects or extra lights. This is the same stationary camera shot moments later; only the waveform becomes flat."
+    }
+  ]
+}
