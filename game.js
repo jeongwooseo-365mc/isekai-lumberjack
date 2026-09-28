@@ -1019,7 +1019,7 @@
     setOverlayHeader("지도");
     if(inCave()){
       setOverlayHeader("동굴 지도");
-      dom.overlayContent.innerHTML=`<div class="map-area cave-map"><button class="cave-exit" data-do="travel" data-place="home" aria-label="집으로 나가기"><img src="assets/ui/cave_exit.png" alt="나가기"></button><button class="map-point cave-door" data-do="old-door">오래된 문</button><button class="map-point cave-home" data-do="travel" data-place="cave_entrance">동굴입구</button>${Object.entries(ANCIENT).map(([place,boss])=>`<button class="map-point cave-${place}" data-do="travel" data-place="${place}">${boss.name}</button>`).join("")}</div>`;return;
+      dom.overlayContent.innerHTML=`<div class="map-area cave-map"><img class="cave-map-art" src="assets/bg/cave_map.png" alt="" draggable="false"><button class="cave-exit" data-do="travel" data-place="home" aria-label="집으로 나가기"><img src="assets/ui/cave_exit.png" alt="나가기"></button><button class="map-point cave-door" data-do="old-door">오래된 문</button><button class="map-point cave-home" data-do="travel" data-place="cave_entrance">동굴입구</button>${Object.entries(ANCIENT).map(([place,boss])=>`<button class="map-point cave-${place}" data-do="travel" data-place="${place}">${boss.name}</button>`).join("")}</div>`;return;
     }
     refreshWorldGateUnlock();
     const world=S.worldGateUnlocked?`<button class="map-point world" data-do="world">원래세계로 가는 문</button>`:"";

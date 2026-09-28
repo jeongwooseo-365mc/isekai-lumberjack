@@ -268,7 +268,8 @@ img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }
 .crystal-scene .target-image { filter: drop-shadow(0 8px 9px #000b) drop-shadow(0 0 6px #b0a0d033); }
 
 /* Ancient cave retains the existing map dimensions. */
-.cave-map { background-image: url("assets/bg/cave_map.png"); }
+.cave-map { background-image: none; }
+.cave-map-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .cave-map .map-point { transform: translate(-50%,-50%); white-space: nowrap; }
 .cave-map .cave-home { left: 50%; top: 85%; }
 .cave-map .cave-worldtree { left: 22%; top: 43%; }

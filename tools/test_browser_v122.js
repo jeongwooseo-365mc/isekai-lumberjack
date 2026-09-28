@@ -80,6 +80,7 @@ const server=http.createServer((req,res)=>{
       await page.evaluate(()=>window.__GAME_DEBUG__.startFinalBattle());
       await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
       await page.getByRole("button",{name:"지도",exact:true}).click();
+      await page.locator(".cave-map-art").evaluate(async img=>{await img.decode();if(!img.naturalWidth)throw new Error("Cave map failed to load");});
       await page.screenshot({path:path.join(out,`cave-map-${width}x${height}.png`)});
       for(const [place,label,type]of [["worldtree","고대 세계수","axe"],["ancient_golem","고대 철골렘","pickaxe"],["ancient_beast","고대 괴수","sword"]]){
         await page.getByRole("button",{name:label,exact:true}).click();
