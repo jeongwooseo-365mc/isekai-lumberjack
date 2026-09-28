@@ -239,6 +239,7 @@ img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }
 .ending-credits-track .ending-thanks { margin-top: 18vh; color: #ffd77d; font-size: .85em; line-height: 1.7; }
 .ending-credits-track.roll { animation: creditsRoll 38s linear forwards; }
 .ending-actions { position: absolute; z-index: 8; left: 50%; bottom: max(30px,env(safe-area-inset-bottom)); width: min(84%,380px); transform: translateX(-50%); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; animation: challengeIn .7s ease both; }
+.normal-ending-hint { grid-column: 1 / -1; margin: 0 0 4px; color: #f5dfb1; font-size: clamp(13px,3.8vw,16px); line-height: 1.45; text-align: center; text-shadow: 0 2px 5px #000; }
 @keyframes endingDrift { from { transform: scale(1.03); } to { transform: scale(1.11) translateY(-1.2%); } }
 @keyframes creditsRoll { from { transform: translateY(0); } to { transform: translateY(calc(-100% - 105vh)); } }
 
@@ -278,7 +279,7 @@ img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }
 .cave-map .cave-door { left: 24%; top: 10%; }
 .cave-exit { position: absolute; z-index: 3; right: 8px; top: 8px; width: 48px; height: 48px; padding: 2px; border: 1px solid #a59067; border-radius: 8px; background: #161820d9; }
 .cave-exit img { width: 100%; height: 100%; object-fit: contain; }
-.boss-challenge p { font-size: clamp(18px,5vw,25px); line-height: 1.9; letter-spacing: .02em; text-shadow: none; }
+.boss-challenge p { font-size: clamp(14px,4vw,23px); line-height: 1.9; letter-spacing: .02em; white-space: nowrap; text-shadow: none; }
 .true-ending .ending-image.active { animation: none; transform: none; transition: none; }
 .true-ending .ending-credits-track.roll { animation-duration: 25s; }
 .true-ending .true-ending-thanks { top: 38%; transform: none; }

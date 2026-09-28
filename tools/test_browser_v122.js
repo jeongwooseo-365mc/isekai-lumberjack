@@ -78,6 +78,7 @@ const server=http.createServer((req,res)=>{
       assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().gear[0].enh),7);
       await page.getByRole("button",{name:"게임 시작",exact:true}).click();
       await page.evaluate(()=>window.__GAME_DEBUG__.startFinalBattle());
+      assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/cave_entrance.ogg'));
       await page.evaluate(async()=>{const img=new Image();img.src="assets/bg/cave_entrance_camp.png";await img.decode();});
       assert.equal(await page.locator("#tapHint").innerText(),"화면을 탭해 휴식 시작");
       await page.locator("#scene").click({position:{x:180,y:250}});
@@ -86,10 +87,12 @@ const server=http.createServer((req,res)=>{
       await page.locator("#scene").click({position:{x:180,y:250}});
       await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
       await page.getByRole("button",{name:"지도",exact:true}).click();
+      assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/ancient_cave_map.ogg'));
       await page.locator(".cave-map-art").evaluate(async img=>{await img.decode();if(!img.naturalWidth)throw new Error("Cave map failed to load");});
       await page.screenshot({path:path.join(out,`cave-map-${width}x${height}.png`)});
       for(const [place,label,type]of [["worldtree","고대 세계수","axe"],["ancient_golem","고대 철골렘","pickaxe"],["ancient_beast","고대 괴수","sword"]]){
         await page.getByRole("button",{name:label,exact:true}).click();
+        assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith(`/${({worldtree:'ancient_world_tree',ancient_golem:'ancient_iron_golem',ancient_beast:'ancient_beast'})[place]}.ogg`));
         assert(await page.locator("#autoButton").isEnabled());
         assert((await page.locator("#character").getAttribute("src")).endsWith(`/${type}/idle.png`));
         await page.locator("#scene").click({position:{x:180,y:250}});await page.waitForTimeout(300);
@@ -172,6 +175,10 @@ const server=http.createServer((req,res)=>{
           await page.getByRole("button",{name:"지도",exact:true}).click();
           await page.getByRole("button",{name:"원래세계로 가는 문",exact:true}).click();
           await page.waitForFunction(()=>document.getElementById("bossPreludeScreen").classList.contains("active"));
+          assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/cave_entrance.ogg'));
+          assert.equal(await page.locator('#bossChallenge p').innerHTML(),'문 너머의 칠흑 같은 동굴 속에서<br>원래 세상의 찬 공기가<br>어렴풋 느껴진다.<br>나가기 위한 재료를<br>모아야 한다');
+          assert.equal(await page.locator('#bossChallenge').evaluate(el=>getComputedStyle(el).textAlign),'center');
+          assert(await page.locator('#bossChallenge p').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
           assert(!(await page.locator("#confirmDialog").evaluate(el=>el.classList.contains("open"))));
           await page.clock.runFor(2100);await page.locator("#bossStartButton").click();
           await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
@@ -181,15 +188,24 @@ const server=http.createServer((req,res)=>{
           await page.getByRole("button",{name:"귀환한다",exact:true}).click();
           assert(await page.evaluate(()=>window.__GAME_DEBUG__.state().ended));
           if(eggs){
+            assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/true_ending.ogg'));
+            assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('그래서인지 허상인 이 공간에서 나는 내 낙을 갈구해 왔던 것 같다.'));
             await page.clock.runFor(25600);assert((await page.locator('#endingReturnImage').getAttribute('src')).includes('hospital'));
+            assert(await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmPaused));
+            assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().endingSrc)).endsWith('/heartbeat.ogg'));
             await page.screenshot({path:path.join(out,'true-ending-hospital.png')});
             await page.clock.runFor(8000);assert((await page.locator('#endingReturnImage').getAttribute('src')).includes('alive'));
             await page.screenshot({path:path.join(out,'true-ending-monitor-alive.png')});
             await page.clock.runFor(6000);assert((await page.locator('#endingReturnImage').getAttribute('src')).includes('flatline'));
             await page.screenshot({path:path.join(out,'true-ending-monitor-flatline.png')});
-            await page.clock.runFor(13000);
+            await page.clock.runFor(6000);
+            assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/true_ending.ogg'));
+            assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.audioState().endingSrc),undefined);
+            await page.clock.runFor(7000);
           }else{assert((await page.locator('#endingCreditsTrack').innerHTML()).includes('일반엔딩'));await page.clock.runFor(41200);}
           await page.waitForFunction(()=>!document.getElementById('endingActions').classList.contains('hidden'));
+          assert.equal(await page.locator('#normalEndingHint').isVisible(),!eggs);
+          if(!eggs)assert.equal(await page.locator('#normalEndingHint').innerText(),'*엔딩을 한번 더 진행하는 것으로 진엔딩 달성가능');
           assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.endingCount()),eggs+1);
           await page.screenshot({path:path.join(out,eggs?'true-ending-complete.png':'normal-ending-complete.png')});
           await page.getByRole("button",{name:"인트로로",exact:true}).click();

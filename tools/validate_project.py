@@ -156,7 +156,7 @@ def main() -> int:
             check_image(f"assets/sprites/{group}/{frame}.png", (512, 512))
     check_image("assets/sprites/fishing/bobber.png", (128, 128))
 
-    bgm_names = ("title", "home", "forest", "mine", "pond", "dungeon", "map", "ending")
+    bgm_names = ("title", "home", "forest", "mine", "pond", "dungeon", "map", "ending", "cave_entrance", "ancient_beast", "ancient_cave_map", "ancient_iron_golem", "ancient_world_tree", "true_ending")
     for name in bgm_names:
         check_audio(f"assets/audio/bgm/{name}.ogg")
 

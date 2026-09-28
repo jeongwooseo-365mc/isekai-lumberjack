@@ -105,8 +105,8 @@
     { id:20, minLevel:90, reward:{key:"dark_blessing",amount:1}, costs:[{key:"tome_ore",min:100,max:400,step:1},{key:"tome_gold",min:100,max:400,step:1},{key:"tome_wood",min:100,max:400,step:1}] },
   ];
 
-  const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"dungeon", ancient_golem:"dungeon", ancient_beast:"dungeon", cave_entrance:"dungeon", map:"map", ending:"ending" };
-  const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집에서 휴식해 주세요.";
+  const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"ancient_world_tree", ancient_golem:"ancient_iron_golem", ancient_beast:"ancient_beast", cave_entrance:"cave_entrance", map:"map", cave_map:"ancient_cave_map", ending:"ending", true_ending:"true_ending" };
+  const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집이나 동굴입구에서 휴식해 주세요.";
   const SFX_FILES = new Set([
     "ui_click","ui_back","ui_confirm","ui_error","auto_on","auto_off","axe_swing","axe_hit","tree_break",
     "pickaxe_swing","pickaxe_hit","ore_break","sword_swing","sword_hit","monster_defeat","fish_cast","water_splash",
@@ -992,8 +992,10 @@
   function openView(type,args={},stack=true) {
     setMenuOpen(false);
     if(stack) overlayStack.push({type,args}); else overlayStack[overlayStack.length-1]={type,args};
-    dom.overlay.classList.add("open"); dom.overlay.setAttribute("aria-hidden","false"); setBgm("map"); renderView();
+    dom.overlay.classList.add("open"); dom.overlay.setAttribute("aria-hidden","false"); setBgm(overlayBgmKey()); renderView();
   }
+
+  function overlayBgmKey() { return inCave()&&overlayStack[overlayStack.length-1]?.type==="map"?"cave_map":"map"; }
 
   function renderView() {
     const view=overlayStack[overlayStack.length-1]; if(!view) return closeOverlay();
@@ -1010,7 +1012,7 @@
 
   function overlayBack() {
     playSfx("ui_back");
-    if(overlayStack.length>1){overlayStack.pop();renderView();}else closeOverlay();
+    if(overlayStack.length>1){overlayStack.pop();setBgm(overlayBgmKey());renderView();}else closeOverlay();
   }
 
   function renderMap() {
@@ -1221,7 +1223,7 @@
   }
   function startBossPrelude() {
     clearCinematicTimers();const token=cinematicToken;
-    showScreen("bossPrelude");$("bossChallenge").classList.add("hidden");setBgm("dungeon");
+    showScreen("bossPrelude");$("bossChallenge").classList.add("hidden");setBgm("cave_entrance");
     cinematicLater(()=>$("bossChallenge").classList.remove("hidden"),BOSS_PRELUDE_MS,token);
   }
   function startFinalBattle() {
@@ -1265,6 +1267,7 @@
     $("endingCreditsTrack").innerHTML=normalCreditsHtml;
     $("endingCreditsTrack").classList.remove("true-ending-thanks");
     dom.ending.classList.remove("true-ending");
+    $("normalEndingHint").classList.toggle("hidden",S.endingKind==="true");
     if(S.endingKind==="true"){startTrueEnding(token);return;}
     $("endingReturnImage").src="assets/bg/ending_return.png";$("endingFinalImage").src="assets/bg/ending.png";
     S.ended=true;S.auto=false;S.fishState=null;persist();showScreen("ending");setBgm("ending");
@@ -1282,16 +1285,16 @@
   }
   function startTrueEnding(token) {
     S.ended=true;S.auto=false;S.fishState=null;persist();showScreen("ending");
-    if(bgm)bgm.pause();bgmKey="";dom.ending.classList.add("true-ending");
+    setBgm("true_ending");dom.ending.classList.add("true-ending");
     const images=$("endingImages"),first=$("endingReturnImage"),second=$("endingFinalImage"),track=$("endingCreditsTrack"),actions=$("endingActions");
     first.classList.remove("active");second.classList.remove("active");images.classList.remove("fade-out");actions.classList.add("hidden");track.classList.remove("roll");
-    const lines=["어렴풋이 알았다.","난 이미 죽음의 문턱에 있고, 지금의 나는 꺼져가는 의식 어딘가라는걸.","문 너머는 원래 세상이 아니다. 원래세상 같은 허상이다.","도끼질를 하는것만이 내 낙이었다.","영원히 반복될 이 허상을 이제 보내주자."];
+    const lines=["어렴풋이 알았다.","난 이미 죽음의 문턱에 있고, 지금의 나는 꺼져가는 의식 어딘가라는걸.","문 너머는 원래 세상이 아니다. 원래세상 같은 허상이다.","도끼질을 하는것만이 내 낙이었다.<br>그래서인지 허상인 이 공간에서 나는 내 낙을 갈구해 왔던 것 같다.","영원히 반복될 이 허상을 이제 보내주자."];
     track.innerHTML=lines.map(line=>`<p>${line}</p>`).join("");
     cinematicLater(()=>track.classList.add("roll"),100,token);
-    cinematicLater(()=>{track.classList.remove("roll");track.innerHTML="";first.src="assets/bg/true_ending_hospital.png";first.classList.add("active");endingSound("heartbeat",true);},25500,token);
+    cinematicLater(()=>{track.classList.remove("roll");track.innerHTML="";first.src="assets/bg/true_ending_hospital.png";first.classList.add("active");if(bgm)bgm.pause();endingSound("heartbeat",true);},25500,token);
     cinematicLater(()=>{first.src="assets/bg/true_ending_monitor_alive.png";},33500,token);
     cinematicLater(()=>{first.src="assets/bg/true_ending_monitor_flatline.png";endingSound("flatline");},39500,token);
-    cinematicLater(()=>{images.classList.add("fade-out");if(endingAudio){endingAudio.pause();endingAudio=null;}},45500,token);
+    cinematicLater(()=>{images.classList.add("fade-out");if(endingAudio){endingAudio.pause();endingAudio=null;}setBgm("true_ending");},45500,token);
     cinematicLater(()=>{track.innerHTML='<p>-이세계에 소환되어버린 나무꾼 진엔딩-</p><p class="ending-thanks">플레이해주셔서 감사합니다</p>';track.classList.add("true-ending-thanks");},47500,token);
     cinematicLater(()=>finalizeEnding(actions),52500,token);
   }
@@ -1413,9 +1416,9 @@
     settleOffline(Date.now());const exchangeChanged=ensureSecretExchange(Date.now(),false);
     if(dom.play.classList.contains("active")) {
       if(S.ended)startEnding();
-      else {render();if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();startLoops();setBgm(dom.overlay.classList.contains("open")?"map":S.place);persist(false);}
+      else {render();if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();startLoops();setBgm(dom.overlay.classList.contains("open")?overlayBgmKey():S.place);persist(false);}
     } else if(dom.intro.classList.contains("active"))setBgm("title");
-    else if(dom.ending.classList.contains("active")){if(S.endingKind!=="true")setBgm("ending");else if(endingAudio)endingAudio.play().catch(()=>{});}
+    else if(dom.ending.classList.contains("active")){if(S.endingKind!=="true")setBgm("ending");else if(endingAudio)endingAudio.play().catch(()=>{});else setBgm("true_ending");}
   }
 
   function bindEvents() {
@@ -1537,6 +1540,7 @@
       selectRecipe:(index)=>{selectedRecipe=Math.max(0,Math.min(RECIPES.length-1,Number(index)||0));},
       selectFood:(index)=>{selectedFoodIndex=Number(index);selectedGearId=null;},
       sceneAction,
+      audioState:()=>({bgmKey,bgmSrc:bgm?.src,bgmPaused:bgm?.paused,endingSrc:endingAudio?.src,endingPaused:endingAudio?.paused}),
       discardSelected,
       startFinalBattle,
       startEnding,

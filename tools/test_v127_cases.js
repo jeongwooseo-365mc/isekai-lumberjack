@@ -3,10 +3,12 @@ module.exports=async function({game:g,element,localStorage,assert:a}){
  let s;const reset=(eggs=0)=>{g.returnToIntroAfterEnding();g.replaceMeta({endingSeen:eggs>0,endingCount:eggs,lastEndingId:null});s=g.freshState();s.openingSeen=true;s.tutorialSeen=true;g.replaceState(s);};
  reset();a.equal(g.constants.MAX_LEVEL,200);a.equal(g.constants.ANCIENT_XP,10000000);a(g.constants.ENDING_REVIEW_RELEASE);a(g.refreshWorldGateUnlock());a.equal(s.lv,1);a(s.reviewGateUnlocked);
  a.deepEqual({...g.doorRequirements()},{token_wood:0,token_ore:0,token_gold:0});g.startFinalBattle();a.equal(s.place,'cave_entrance');a.equal(s.target,null);
+ a(g.audioState().bgmSrc.endsWith('/cave_entrance.ogg'));
  s.hp=100;s.house=2;g.sceneAction({target:{closest:()=>null}});a(s.resting&&s.auto);a(element('scene').style.backgroundImage.includes('cave_entrance_camp.png'));
  s.lastSeen=100000;g.settleOffline(103000);a.equal(s.hp,115,'cave rest uses the selected house heal per second, including offline time');
  s.house=4;g.settleOffline(105000);a.equal(s.hp,315,'changing the designated house also changes cave rest healing');
  g.toggleAuto();a(!s.resting&&!s.auto);g.sceneAction({target:{closest:()=>null}});a(s.resting);g.travel('worldtree');a(!s.resting&&!s.auto,'leaving the cave rest area stops healing');
+ for(const [place,track] of [['worldtree','ancient_world_tree'],['ancient_golem','ancient_iron_golem'],['ancient_beast','ancient_beast']]){g.travel(place);a(g.audioState().bgmSrc.endsWith(`/${track}.ogg`));}
  for(const [place,weapon,kind]of [['worldtree','axe','wood'],['ancient_golem','pickaxe','ore'],['ancient_beast','sword','gold']]){
   reset();s.lv=150;s.hp=100000;g.travel(place);a.equal(g.currentWeaponType(),weapon);a.equal(s.target.xp,10000000);s.target.hp=1;g.workAction(true);a.equal(s.xp,10000000);a.equal(g.stackCount(`token_${kind}`),1);a.equal(s.ended,false);a.equal(s.target.hp,10000000);
   s.target.hp=123;g.travel('cave_entrance');g.travel(place);a.equal(s.target.hp,10000000);
