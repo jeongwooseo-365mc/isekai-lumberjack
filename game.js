@@ -19,6 +19,7 @@
   };
   const isAncient = (place=S.place) => !!ANCIENT[place];
   const inCave = () => S.place==="cave_entrance"||isAncient();
+  const isRestArea = () => S.place==="home"||S.place==="cave_entrance";
   const canWork = () => ["forest","mine","dungeon"].includes(S.place)||isAncient();
   const MAX_LEVEL = 200;
   const SAVE_VERSION = "1.1.0";
@@ -641,13 +642,13 @@
     const from=Number(S.lastSeen)||now;
     const elapsed=Math.max(0,Math.floor((now-from)/1000));
     if(elapsed<=0) { if(!Number.isFinite(Number(S.lastSeen)))S.lastSeen=now; return 0; }
-    if(S.place==="home"&&S.resting) {
+    if(isRestArea()&&S.resting) {
       S.restElapsed=(S.restElapsed||0)+elapsed;
       const ticks=elapsed;S.restProgress=0;
       if(ticks>0 && S.hp<maxHp()) {
         const before=S.hp; S.hp=Math.min(maxHp(),S.hp+ticks*HOUSES[S.house].heal);
         const gained=S.hp-before;
-        if(gained>0&&(elapsed>1||S.hp>=maxHp()))addLog(`${HOUSES[S.house].name}에서 체력 ${gained} 회복.`,"assets/ui/realestate.png","good",now);
+        if(gained>0&&(elapsed>1||S.hp>=maxHp()))addLog(`${S.place==="home"?HOUSES[S.house].name:"동굴입구"}에서 체력 ${gained} 회복.`,"assets/ui/realestate.png","good",now);
       }
     } else if(S.place==="pond") {
       if(S.auto) {
@@ -696,7 +697,7 @@
     const now=Date.now(),exchangeChanged=ensureSecretExchange(now);
     if(exchangeChanged&&dom.overlay.classList.contains("open")&&overlayStack[overlayStack.length-1]?.type==="workshop")renderWorkshop();
     document.querySelectorAll?.("[data-secret-countdown]").forEach(button=>button.textContent=`교환하기 · ${secretCountdownLabel(now)}`);
-    if(S.place==="home"&&S.resting) {
+    if(isRestArea()&&S.resting) {
       dom.fishingStatus.textContent=`휴식 중 · ${elapsedLabel(S.restElapsed)} 경과 · 1초당 +${HOUSES[S.house].heal}`;
       return;
     }
@@ -707,7 +708,7 @@
   }
 
   function toggleResting() {
-    if(S.place!=="home")return;
+    if(!isRestArea())return;
     S.resting=!S.resting;S.auto=S.resting;S.restProgress=0;S.restElapsed=0;
     if(S.resting) {
       addLog(`휴식 시작: 1초마다 체력 ${HOUSES[S.house].heal} 회복.`,"assets/ui/realestate.png","good");
@@ -719,8 +720,7 @@
   }
 
   function toggleAuto() {
-    if(S.place==="cave_entrance"){S.auto=false;render();return;}
-    if(S.place==="home") { toggleResting(); return; }
+    if(isRestArea()) { toggleResting(); return; }
     if(S.hp<=0) { S.auto=false; toast(EXHAUSTED_MESSAGE); playSfx("exhausted"); render(); return; }
     S.auto=!S.auto; playSfx(S.auto?"auto_on":"auto_off");
     addLog(`오토 ${S.auto?"시작":"종료"}.`,"assets/ui/auto.png",S.auto?"good":"");
@@ -731,7 +731,7 @@
   function travel(place, grade=0) {
     const leavingBoss=isAncient()&&S.target&&S.target.hp>0;
     const oldBoss=leavingBoss?ANCIENT[S.place]:null;
-    if(S.place==="home"&&place!=="home"){S.resting=false;S.auto=false;}
+    if(isRestArea()&&place!==S.place){S.resting=false;S.auto=false;}
     S.place=place; S.grade=grade; S.target=null; S.restProgress=0;S.restElapsed=0;
     if(place!=="pond") S.fishState=null;
     if(place==="home"||place==="cave_entrance") {S.auto=false;S.resting=false;}
@@ -805,13 +805,13 @@
 
   function render(save=false) {
     renderScene(); renderHud();
-    dom.autoButton.disabled=S.place==="cave_entrance";
+    dom.autoButton.disabled=false;
     dom.autoState.textContent=S.auto?"ON":"OFF"; dom.autoButton.classList.toggle("on",S.auto);
     if(save) persist();
   }
 
   function renderScene() {
-    const bg=S.place==="home"?`home${S.house+1}.png`:S.place==="pond"?"pond.png":isAncient()?`${ANCIENT[S.place].bg}.png`:S.place==="cave_entrance"?"cave_entrance.png":`${S.place}${S.grade+1}.png`;
+    const bg=S.place==="home"?`home${S.house+1}.png`:S.place==="pond"?"pond.png":isAncient()?`${ANCIENT[S.place].bg}.png`:S.place==="cave_entrance"?"cave_entrance_camp.png":`${S.place}${S.grade+1}.png`;
     dom.scene.style.backgroundImage=`url("assets/bg/${bg}")`;
     dom.placeTitle.textContent=currentPlaceName();
     dom.scene.classList.toggle("worldtree-scene",isAncient());
@@ -819,12 +819,10 @@
     const hasTarget=canWork();
     dom.targetArea.classList.toggle("hidden",!hasTarget);dom.targetHud.classList.toggle("hidden",!hasTarget);
     dom.bobber.classList.add("hidden"); dom.fishingLine.classList.add("hidden"); dom.fishingStatus.classList.add("hidden"); dom.character.classList.remove("fishing","casting","waiting","lifting","rewarding");
-    if(S.place==="home") {
+    if(isRestArea()) {
       dom.character.src=S.resting?"assets/sprites/rest/rest.png":"assets/sprites/rest/idle.png";
       dom.tapHint.textContent=S.resting?"화면을 탭하면 휴식 종료":"화면을 탭해 휴식 시작";
       if(S.resting){dom.fishingStatus.classList.remove("hidden");updateActivityStatus();}
-    } else if(S.place==="cave_entrance") {
-      dom.character.src="assets/sprites/rest/idle.png";dom.tapHint.textContent="";
     } else if(S.place==="pond") {
       dom.character.classList.add("fishing");
       const now=Date.now();
@@ -1360,12 +1358,11 @@
     if(tutorialStage)return;
     if(event.target.closest("button")||dom.overlay.classList.contains("open"))return;
     if(menuOpen){setMenuOpen(false);return;}
-    if(S.place==="home") {toggleResting();return;}
+    if(isRestArea()) {toggleResting();return;}
     if(S.place==="pond") {
       if(S.fishState){dom.bobber.style.animation="none";void dom.bobber.offsetWidth;dom.bobber.style.animation="bob .22s ease-in-out 2 alternate";setTimeout(()=>dom.bobber.style.animation="",500);}else startFishing(false);
       return;
     }
-    if(S.place==="cave_entrance")return;
     if(actionLocked)return;workAction(false);
   }
 

@@ -81,6 +81,7 @@ def main() -> int:
         "map.png",
         "pond.png",
         "worldtree_cave.png",
+        "cave_entrance_camp.png",
         "story_intro1.png",
         "story_intro2.png",
         "story_intro3.png",

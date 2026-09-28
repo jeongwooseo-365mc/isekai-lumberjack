@@ -78,6 +78,12 @@ const server=http.createServer((req,res)=>{
       assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().gear[0].enh),7);
       await page.getByRole("button",{name:"게임 시작",exact:true}).click();
       await page.evaluate(()=>window.__GAME_DEBUG__.startFinalBattle());
+      await page.evaluate(async()=>{const img=new Image();img.src="assets/bg/cave_entrance_camp.png";await img.decode();});
+      assert.equal(await page.locator("#tapHint").innerText(),"화면을 탭해 휴식 시작");
+      await page.locator("#scene").click({position:{x:180,y:250}});
+      assert(await page.evaluate(()=>window.__GAME_DEBUG__.state().resting));
+      await page.screenshot({path:path.join(out,`cave-entrance-rest-${width}x${height}.png`)});
+      await page.locator("#scene").click({position:{x:180,y:250}});
       await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
       await page.getByRole("button",{name:"지도",exact:true}).click();
       await page.locator(".cave-map-art").evaluate(async img=>{await img.decode();if(!img.naturalWidth)throw new Error("Cave map failed to load");});
