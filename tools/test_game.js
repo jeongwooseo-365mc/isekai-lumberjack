@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.2.9","cave door, food, and transcendence release app version");
+    assert.equal(game.constants.APP_VERSION,"1.3.0","cave door, food, and transcendence release app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -61,7 +61,7 @@ setTimeout(async()=>{
     assert(Object.values(state.fish).every(v=>v===0));
     assert(state.foods.every(v=>v===0));
     assert.equal(state.equippedFood,null);
-    assert.equal(state.worldGateUnlocked,true,"review release opens the gate at level one");
+    assert.equal(state.worldGateUnlocked,false,"a new level-one game keeps the return gate locked");
     assert.equal(state.settings.bgm,.5,"default BGM volume is 50%");
     assert.equal(state.settings.sfx,.5,"default SFX volume is 50%");
     assert.deepEqual(Array.from(game.constants.ROD_PROBS,row=>Array.from(row)),[[80,19,1,0,0,0],[70,20,8,1.6,.3,.1],[60,25,10,3.4,1.2,.4],[50,20,20,11,3,1],[30,15,25,16,11,4]],"fishing weights match v1.1 balance");

@@ -1,9 +1,9 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.2.9";
+  const APP_VERSION = "1.3.0";
   // Keep the ending review conditions until the user requests their rollback.
-  const ENDING_REVIEW_RELEASE = true;
+  const ENDING_REVIEW_RELEASE = false;
   const ANCIENT_XP = 10000000;
   const ANCIENT = {
     worldtree:{name:"고대 세계수",weapon:"axe",kind:"wood",sprite:"worldtree",bg:"worldtree_cave"},
@@ -376,7 +376,12 @@
   function elapsedLabel(seconds) { const total=Math.max(0,Math.floor(seconds||0));if(total<60)return `${total}초`;if(total<3600)return `${Math.floor(total/60)}분 ${total%60}초`;return `${Math.floor(total/3600)}시간 ${Math.floor(total%3600/60)}분`; }
   function hasAllDivineGear() { return Object.keys(GEAR_LABEL).every(type=>S.gear.some(g=>g.type===type&&g.tier===4)); }
   function refreshWorldGateUnlock(announce=false) {
-    if(!ENDING_REVIEW_RELEASE&&S.reviewGateUnlocked){S.worldGateUnlocked=S.lv>=100||hasAllDivineGear();delete S.reviewGateUnlocked;}
+    if(!ENDING_REVIEW_RELEASE&&S.reviewGateUnlocked){
+      S.worldGateUnlocked=S.lv>=100||hasAllDivineGear();delete S.reviewGateUnlocked;
+      if(!S.worldGateUnlocked&&!S.ended&&inCave()){
+        S.place="home";S.target=null;S.auto=false;S.resting=false;S.fishState=null;
+      }
+    }
     if(S.worldGateUnlocked) return true;
     if(S.lv>=(ENDING_REVIEW_RELEASE?1:100)||hasAllDivineGear()) {
       S.worldGateUnlocked=true;
@@ -819,6 +824,7 @@
     dom.scene.style.backgroundImage=`url("assets/bg/${bg}")`;
     dom.placeTitle.textContent=currentPlaceName();
     dom.scene.classList.toggle("worldtree-scene",isAncient());
+    dom.scene.classList.toggle("ancient-golem-scene",S.place==="ancient_golem");
     dom.scene.classList.toggle("crystal-scene",S.grade===3&&["forest","mine","dungeon"].includes(S.place));
     const hasTarget=canWork();
     dom.targetArea.classList.toggle("hidden",!hasTarget);dom.targetHud.classList.toggle("hidden",!hasTarget);
@@ -1242,7 +1248,7 @@
     setOverlayHeader("오래된 문");
     const rows=Object.entries(doorRequirements()).map(([type,n])=>`<div class="requirement-row ${stackCount(type)<n?"missing":""}"><img src="assets/items/${STACK_ITEMS[type].icon}.png" alt=""><span>${STACK_ITEMS[type].name}</span><b>${stackCount(type).toLocaleString()} / ${n}</b></div>`).join("");
     const egg=endingCount()>0?`<div class="requirement-row"><img src="assets/items/easter_egg.png" alt=""><span>이스터에그</span><b>${endingCount().toLocaleString()} / 1</b></div>`:"";
-    dom.overlayContent.innerHTML=`<div class="detail-card"><h3>원래세계로 가는 오래된 문</h3><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${egg}${rows}<button class="primary-button wide-action" data-do="return-world" ${canEnterEnding()&&!enhancing?"":"disabled"}>문 열기</button></div></div>`;
+    dom.overlayContent.innerHTML=`<div class="detail-card old-door-detail"><h3>고대의 증표를 사용하여 문을 엽니다</h3><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${egg}${rows}<button class="primary-button wide-action" data-do="return-world" ${canEnterEnding()&&!enhancing?"":"disabled"}>문 열기</button></div></div>`;
   }
   async function returnThroughDoor() {
     if(!inCave()||S.ended||enhancing||!canEnterEnding())return;

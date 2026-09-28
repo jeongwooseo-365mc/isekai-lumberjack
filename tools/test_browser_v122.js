@@ -93,6 +93,7 @@ const server=http.createServer((req,res)=>{
       for(const [place,label,type]of [["worldtree","고대 세계수","axe"],["ancient_golem","고대 철골렘","pickaxe"],["ancient_beast","고대 괴수","sword"]]){
         await page.getByRole("button",{name:label,exact:true}).click();
         assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith(`/${({worldtree:'ancient_world_tree',ancient_golem:'ancient_iron_golem',ancient_beast:'ancient_beast'})[place]}.ogg`));
+        if(place==="ancient_golem")assert(Math.abs(await page.locator('#targetArea').evaluate(el=>new DOMMatrix(getComputedStyle(el).transform).a)-.7)<.001,"golem art is shown at 70% size");
         assert(await page.locator("#autoButton").isEnabled());
         assert((await page.locator("#character").getAttribute("src")).endsWith(`/${type}/idle.png`));
         await page.locator("#scene").click({position:{x:180,y:250}});await page.waitForTimeout(300);
@@ -101,8 +102,11 @@ const server=http.createServer((req,res)=>{
         await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
         await page.getByRole("button",{name:"지도",exact:true}).click();
       }
+      await page.evaluate(()=>{const g=window.__GAME_DEBUG__;for(const kind of ['wood','ore','gold'])g.addStack(`token_${kind}`,100);});
       await page.getByRole("button",{name:"오래된 문",exact:true}).click();
       assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/ancient_cave_map.ogg'));
+      assert.equal(await page.locator('.old-door-detail > h3').innerText(),'고대의 증표를 사용하여 문을 엽니다');
+      assert(await page.locator('.old-door-detail > h3').evaluate(el=>parseFloat(getComputedStyle(el).paddingLeft)>=16&&el.scrollWidth<=el.clientWidth+1));
       assert(await page.locator('[data-do="return-world"]').isEnabled());
       assert.equal(await page.locator('.requirement-row').count(),4);
       await page.screenshot({path:path.join(out,`ending-door-${width}x${height}.png`)});
@@ -170,7 +174,7 @@ const server=http.createServer((req,res)=>{
       if(width===390){
         await page.clock.install();
         for(const eggs of [0,1]){
-          await page.evaluate(eggs=>{const g=window.__GAME_DEBUG__;g.returnToIntroAfterEnding();g.replaceMeta({endingSeen:eggs>0,endingCount:eggs});const s=g.freshState();s.openingSeen=true;s.tutorialSeen=true;g.replaceState(s);g.renderIntro();},eggs);
+          await page.evaluate(eggs=>{const g=window.__GAME_DEBUG__;g.returnToIntroAfterEnding();g.replaceMeta({endingSeen:eggs>0,endingCount:eggs});const s=g.freshState();s.lv=100;s.openingSeen=true;s.tutorialSeen=true;g.replaceState(s);for(const kind of ['wood','ore','gold'])g.addStack(`token_${kind}`,eggs?100:1);g.renderIntro();},eggs);
           await page.getByRole("button",{name:"게임 시작",exact:true}).click();
           await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
           await page.getByRole("button",{name:"지도",exact:true}).click();
@@ -186,6 +190,7 @@ const server=http.createServer((req,res)=>{
           await page.getByRole("button",{name:"지도",exact:true}).click();
           await page.getByRole("button",{name:"오래된 문",exact:true}).click();
           assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/ancient_cave_map.ogg'));
+          assert((await page.locator('.old-door-detail').innerText()).includes(eggs?'100 / 100':'1 / 1'));
           await page.getByRole("button",{name:"문 열기",exact:true}).click();
           assert((await page.evaluate(()=>window.__GAME_DEBUG__.audioState().bgmSrc)).endsWith('/ancient_cave_map.ogg'));
           await page.getByRole("button",{name:"귀환한다",exact:true}).click();
@@ -220,6 +225,6 @@ const server=http.createServer((req,res)=>{
       await context.close();
     }
     assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, ancient bosses, cave map, designated weapons, auto, both ending sequences, trophy stack, tome/blessing exchange and saved protection stack, all menu headers, named top-area reflection logs\n");
-    console.log("Browser v1.2.9 QA: PASS");
+    console.log("Browser v1.3.0 QA: PASS");
   }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});
