@@ -153,7 +153,7 @@ const server=http.createServer((req,res)=>{
       assert(await page.locator("#overlayContent").evaluate(e=>e.scrollWidth<=e.clientWidth+1));
       await page.screenshot({path:path.join(out,`blessing-inventory-${width}x${height}.png`)});
       await page.locator("#closeButton").click();
-      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state(),rod=s.gear.find(x=>x.type==='rod'&&x.tier===4);rod.enh=10;g.addStack('transcendence',1);g.selectEnhance(rod.id);});
+      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state(),rod=s.gear.find(x=>x.type==='rod');rod.tier=4;rod.enh=10;g.addStack('transcendence',1);g.selectEnhance(rod.id);});
       await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
       await page.getByRole("button",{name:"강화",exact:true}).click();
       assert((await page.locator('.detail-copy').innerText()).includes('성공 확률 30%'));
