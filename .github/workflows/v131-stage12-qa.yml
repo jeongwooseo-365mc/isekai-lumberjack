@@ -19,6 +19,7 @@ jobs:
       - run: npm install
       - run: python3 -m pip install Pillow
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: node tools/prepare_dist.js
       - run: python3 tools/validate_project.py
       - run: node tools/test_game.js
       - run: npm install --no-save --package-lock=false playwright@1.51.1
