@@ -123,7 +123,7 @@ const server=http.createServer((req,res)=>{
       // New exchange items use the real purchase and profile click paths.
       await page.evaluate(()=>{
         const g=window.__GAME_DEBUG__,s=g.state();s.lv=90;s.tomes={wood:500,ore:500,gold:500};s.res.wood[2]=1500;s.res.ore[2]=1500;s.res.gold[2]=1500;
-        s.secretExchange={windowId:g.secretWindowId(),offers:g.constants.SECRET_EXCHANGE_TEMPLATES.filter(t=>t.id>=17).map(t=>({id:`v125_${t.id}`,templateId:t.id,reward:{...t.reward},costs:t.costs.map(c=>({key:c.key,amount:t.id===20?100:1000})),claimed:false}))};
+        s.secretExchange={windowId:g.secretWindowId(),offers:g.constants.SECRET_EXCHANGE_TEMPLATES.filter(t=>t.id>=17&&t.id<=20).map(t=>({id:`v125_${t.id}`,templateId:t.id,reward:{...t.reward},costs:t.costs.map(c=>({key:c.key,amount:t.id===20?100:1000})),claimed:false}))};
         g.travel("home");
       });
       await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
@@ -135,7 +135,7 @@ const server=http.createServer((req,res)=>{
       assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().res.wood[2]),500);
       await page.locator('[data-do="secret-offer"][data-id="v125_20"]').click();
       assert.equal(await page.locator(".detail-copy .value").innerText(),"강화 시 파괴 방지");
-      assert((await page.locator(".detail-copy").innerText()).includes("보유시 자동 사용되어 장비 파괴를 1회 방지합니다."));
+      assert((await page.locator(".detail-copy").innerText()).includes("보유시 자동 사용되어 장비 파괴를 1회 방지합니다. (초월강화제외)"));
       assert.equal(await page.locator(".requirements .requirement-row").count(),3);
       await page.waitForFunction(()=>Array.from(document.querySelectorAll("img")).filter(i=>i.getBoundingClientRect().width>0).every(i=>i.complete&&i.naturalWidth>0));
       await page.screenshot({path:path.join(out,`blessing-exchange-${width}x${height}.png`)});
@@ -149,8 +149,17 @@ const server=http.createServer((req,res)=>{
       assert.equal(await page.locator('[data-id="dark_blessing"] .food-stack').innerText(),"x1");
       assert(await page.locator('[data-do="equip"]').isDisabled());assert(await page.locator('[data-do="discard"]').isDisabled());
       assert.equal(await page.locator(".detail-copy .value").innerText(),"강화 시 파괴 방지");
+      assert((await page.locator(".detail-copy").innerText()).includes("(초월강화제외)"));
       assert(await page.locator("#overlayContent").evaluate(e=>e.scrollWidth<=e.clientWidth+1));
       await page.screenshot({path:path.join(out,`blessing-inventory-${width}x${height}.png`)});
+      await page.locator("#closeButton").click();
+      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state(),rod=s.gear.find(x=>x.type==='rod');rod.tier=4;rod.enh=10;g.addStack('transcendence',1);g.selectEnhance(rod.id);});
+      await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
+      await page.getByRole("button",{name:"강화",exact:true}).click();
+      assert((await page.locator('.detail-copy').innerText()).includes('성공 확률 30%'));
+      assert((await page.locator('.detail-copy').innerText()).includes('실패 시 장비 파괴(칠흑의 가호 사용불가)'));
+      assert(await page.locator("#overlayContent").evaluate(e=>e.scrollWidth<=e.clientWidth+1));
+      await page.screenshot({path:path.join(out,`transcendence-hint-${width}x${height}.png`)});
       await page.evaluate(()=>window.__GAME_DEBUG__.flushSaveQueue());await page.reload();
       await page.waitForFunction(()=>window.__GAME_DEBUG__?.blessingCount()===1);
       assert.deepEqual(await page.evaluate(()=>({...window.__GAME_DEBUG__.state().tomes})),{wood:410,ore:400,gold:400});
@@ -165,6 +174,13 @@ const server=http.createServer((req,res)=>{
       for(const title of ["지도","제작소","부동산","요리","강화","마이페이지","설정"]){
         await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
         await page.getByRole("button",{name:title,exact:true}).click();await checkHeader(title);
+        if(title==="요리"){
+          await page.locator('[data-do="recipe-select"][data-recipe="2"]').click();
+          assert.equal(await page.locator('.detail-copy h3').innerText(),'어탕');
+          assert((await page.locator('.detail-card').innerText()).includes('체력 +600'));
+          await page.locator('.detail-icon img').evaluate(async img=>{await img.decode();if(!img.naturalWidth)throw new Error('Fish tang icon failed to load');});
+          await page.screenshot({path:path.join(out,`fish-tang-${width}x${height}.png`)});
+        }
         if(title==="제작소"){
           await page.locator('[data-do="workshop-type"][data-type="secret"]').click();await checkHeader("비밀교환소");
         }
@@ -225,6 +241,6 @@ const server=http.createServer((req,res)=>{
       await context.close();
     }
     assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, ancient bosses, cave map, designated weapons, auto, both ending sequences, trophy stack, tome/blessing exchange and saved protection stack, all menu headers, named top-area reflection logs\n");
-    console.log("Browser v1.3.0 QA: PASS");
+    console.log("Browser v1.3.1 QA: PASS");
   }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});

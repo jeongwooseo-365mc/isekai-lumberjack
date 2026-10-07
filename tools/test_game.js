@@ -50,7 +50,7 @@ setTimeout(async()=>{
     const game=window.__GAME_DEBUG__;
     assert(game,"debug API should exist");
     let state=game.state();
-    assert.equal(game.constants.APP_VERSION,"1.3.0","cave door, food, and transcendence release app version");
+    assert.equal(game.constants.APP_VERSION,"1.3.1","cave door, food, and transcendence release app version");
     assert.equal(game.constants.SAVE_VERSION,"1.1.0","v1.1 saves remain compatible with the hotfix");
     assert.equal(state.version,"1.1.0");
     assert.equal(state.lv,1,"release build starts at level 1");
@@ -70,6 +70,7 @@ setTimeout(async()=>{
     assert.deepEqual(Array.from(game.constants.RECIPES,r=>({name:r.name,heal:r.heal,cost:{...r.cost}})),[
       {name:"생선 수프",heal:100,cost:{해초:100,민어:25}},
       {name:"해산물 스튜",heal:300,cost:{해초:100,조개:100,민어:50}},
+      {name:"어탕",heal:600,cost:{민어:200}},
       {name:"구운 생선",heal:1000,cost:{숭어:100}},
       {name:"연어 스테이크",heal:2000,cost:{연어:100}},
       {name:"고급 랍스터 정식",heal:5000,cost:{랍스터:100}},
@@ -145,9 +146,9 @@ setTimeout(async()=>{
     state.equippedFood=0;state.place="forest";state.auto=true;state.hp=1;state.target={hp:999999,max:999999,def:0,xp:20};game.workAction(true,1000);
     assert.equal(state.hp,100,"equipped food automatically restores HP at zero");assert.equal(state.foods[0],0,"automatic eating consumes one food");assert.equal(state.equippedFood,null,"empty food stack clears the equipped slot");assert.equal(state.auto,true,"auto continues after automatic food recovery");assert(!state.unseenFoodIndices.includes(0),"empty food stacks clear their unseen marker");
 
-    state=game.freshState();game.replaceState(state);state.foods[3]=2;state.hp=0;game.selectFood(3);game.equipSelectedFood();assert.equal(state.equippedFood,3);game.renderProfile();assert(element("overlayContent").innerHTML.includes("연어 스테이크 x2"));game.renderHud();assert.equal((element("equippedGrid").innerHTML.match(/class="equip-slot/g)||[]).length,6,"HUD includes five gear slots and one food slot");assert(element("equippedGrid").innerHTML.includes("x2"));
+    state=game.freshState();game.replaceState(state);state.foods[4]=2;state.hp=0;game.selectFood(4);game.equipSelectedFood();assert.equal(state.equippedFood,4);game.renderProfile();assert(element("overlayContent").innerHTML.includes("연어 스테이크 x2"));game.renderHud();assert.equal((element("equippedGrid").innerHTML.match(/class="equip-slot/g)||[]).length,6,"HUD includes five gear slots and one food slot");assert(element("equippedGrid").innerHTML.includes("x2"));
     assert(element("overlayContent").innerHTML.includes("장착 해제"),"equipped food offers an unequip action");assert(!element("overlayContent").innerHTML.includes("즉시먹기"),"equipped food hides immediate eating");game.unequipSelectedFood();assert.equal(state.equippedFood,null,"food can be unequipped without being consumed");game.renderProfile();assert(element("overlayContent").innerHTML.includes("즉시먹기"));
-    game.eatSelectedFood();assert.equal(state.foods[3],1);assert.equal(state.hp,600,"immediate eating uses the updated recovery amount");
+    game.eatSelectedFood();assert.equal(state.foods[4],1);assert.equal(state.hp,600,"immediate eating uses the updated recovery amount");
 
     state=game.freshState();game.replaceState(state);state.res.wood[0]=99998;game.normalizeInventory();state.res.wood[0]+=50;game.normalizeInventory();assert.equal(state.res.wood[0],99999,"resources cap at 99999");
 
@@ -200,7 +201,7 @@ setTimeout(async()=>{
     assert.equal(game.exchangeSelectedSecret(tradeNow),true,"a funded secret offer exchanges successfully");assert.equal(state.res.wood[0],0);assert.equal(state.res.wood[1],100);assert.equal(state.secretExchange.offers[0].claimed,true,"an exchanged offer is permanently consumed for its window");assert.equal(game.secretExchangeVisible(tradeNow),false,"the secret tab disappears after every offer is consumed");
 
     state=game.freshState();game.replaceState(state);state.lv=60;state.secretExchange={windowId:game.secretWindowId(tradeNow),offers:[{id:"food-trade",templateId:9,reward:{key:"food0",amount:5},costs:[{key:"gold0",amount:700}],claimed:false},{...claimed,id:"food-claimed2"},{...claimed,id:"food-claimed3"},{...claimed,id:"food-claimed4"}]};state.res.gold[0]=700;game.selectSecretOffer("food-trade");assert.equal(game.exchangeSelectedSecret(tradeNow),true);assert.equal(state.foods[0],5,"food rewards enter the shared inventory");assert(state.unseenFoodIndices.includes(0),"exchanged food is marked as newly acquired");
-    assert(game.constants.SECRET_EXCHANGE_TEMPLATES.filter(template=>template.minLevel===60).every(template=>{const names=[template.reward.key,...template.costs.map(cost=>cost.key||"")];return names.some(key=>/2$/.test(key));}),"every exchange involving an upper-tier item is gated to level 60");
+    assert(game.constants.SECRET_EXCHANGE_TEMPLATES.filter(template=>template.minLevel===60&&![22,23].includes(template.id)).every(template=>{const names=[template.reward.key,...template.costs.map(cost=>cost.key||"")];return names.some(key=>/2$/.test(key));}),"upper-tier material exchanges are gated to level 60");
 
     state=game.freshState();game.replaceState(state);state.openingSeen=false;game.renderIntro();assert.equal(element("saveSummary").textContent,"나의 나무꾼이 없습니다.");state.openingSeen=true;state.lv=37;state.place="pond";game.renderIntro();assert.equal(element("saveSummary").textContent,"나의 나무꾼 정보 : Lv.37, 장소: 연못");
     element("playScreen").classList.add("active");state.tutorialSeen=false;assert.equal(game.startNewUserGuide(),true);assert.equal(game.tutorialStage(),"menu");assert(element("newUserGuide").classList.contains("hidden")===false);assert(element("menuToggle").classList.contains("tutorial-highlight"));assert.equal(game.showTutorialMapStep(),true);assert.equal(game.tutorialStage(),"map");assert(element("mapMenuButton").classList.contains("tutorial-map-highlight"));assert.equal(game.finishNewUserGuide(),true);assert.equal(state.tutorialSeen,true);assert(element("newUserGuide").classList.contains("hidden"),"tutorial disappears permanently after choosing the map");
@@ -211,6 +212,7 @@ setTimeout(async()=>{
     await require("./test_v124_cases")({game,element,localStorage,assert});
     await require("./test_v125_cases")({game,element,localStorage,assert});
     await require("./test_v127_cases")({game,element,localStorage,assert});
+    await require("./test_v131_stage12")({game,element,localStorage,assert});
     console.log("game logic smoke tests: OK");
     process.exit(0);
   } catch(error) { console.error(error.stack||error); process.exit(1); }
