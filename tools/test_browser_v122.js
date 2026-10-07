@@ -123,7 +123,7 @@ const server=http.createServer((req,res)=>{
       // New exchange items use the real purchase and profile click paths.
       await page.evaluate(()=>{
         const g=window.__GAME_DEBUG__,s=g.state();s.lv=90;s.tomes={wood:500,ore:500,gold:500};s.res.wood[2]=1500;s.res.ore[2]=1500;s.res.gold[2]=1500;
-        s.secretExchange={windowId:g.secretWindowId(),offers:g.constants.SECRET_EXCHANGE_TEMPLATES.filter(t=>t.id>=17).map(t=>({id:`v125_${t.id}`,templateId:t.id,reward:{...t.reward},costs:t.costs.map(c=>({key:c.key,amount:t.id===20?100:1000})),claimed:false}))};
+        s.secretExchange={windowId:g.secretWindowId(),offers:g.constants.SECRET_EXCHANGE_TEMPLATES.filter(t=>t.id>=17&&t.id<=20).map(t=>({id:`v125_${t.id}`,templateId:t.id,reward:{...t.reward},costs:t.costs.map(c=>({key:c.key,amount:t.id===20?100:1000})),claimed:false}))};
         g.travel("home");
       });
       await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
@@ -165,6 +165,13 @@ const server=http.createServer((req,res)=>{
       for(const title of ["지도","제작소","부동산","요리","강화","마이페이지","설정"]){
         await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
         await page.getByRole("button",{name:title,exact:true}).click();await checkHeader(title);
+        if(title==="요리"){
+          await page.locator('[data-do="recipe-select"][data-recipe="2"]').click();
+          assert.equal(await page.locator('.detail-copy h3').innerText(),'어탕');
+          assert((await page.locator('.detail-card').innerText()).includes('체력 +600'));
+          await page.locator('.detail-icon img').evaluate(async img=>{await img.decode();if(!img.naturalWidth)throw new Error('Fish tang icon failed to load');});
+          await page.screenshot({path:path.join(out,`fish-tang-${width}x${height}.png`)});
+        }
         if(title==="제작소"){
           await page.locator('[data-do="workshop-type"][data-type="secret"]').click();await checkHeader("비밀교환소");
         }

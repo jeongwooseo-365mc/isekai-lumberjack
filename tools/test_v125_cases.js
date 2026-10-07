@@ -23,9 +23,9 @@ module.exports=async function testV125({game,element,localStorage,assert}){
   s.secretExchange.windowId="2026-09-17-0";assert(game.ensureSecretExchange(now,false),"old six-hour inventory cannot collide with a new window");
   s.rngSeed=987654321;const seen=new Set(),samples={17:[],18:[],19:[],20:[]};
   for(let i=0;i<1200;i++){
-    assert(game.createSecretExchange(id,89).offers.every(o=>o.templateId<17));
+    assert(game.createSecretExchange(id,89).offers.every(o=>game.constants.SECRET_EXCHANGE_TEMPLATES.find(t=>t.id===o.templateId).minLevel<=60));
     for(const o of game.createSecretExchange(id,90).offers){
-      if(o.templateId<17)continue;seen.add(o.templateId);
+      if(o.templateId<17||o.templateId>20)continue;seen.add(o.templateId);
       assert.equal(o.reward.amount,o.templateId===20?1:10);
       for(const c of o.costs){assert(Number.isInteger(c.amount));assert(c.amount>=(o.templateId===20?100:500)&&c.amount<=(o.templateId===20?400:1500));samples[o.templateId].push(c.amount);}
     }

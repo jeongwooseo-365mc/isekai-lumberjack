@@ -77,6 +77,7 @@
   const RECIPES = [
     { name: "생선 수프", icon: "fish_soup", heal: 100, cost: {해초:100,민어:25} },
     { name: "해산물 스튜", icon: "seafood_stew", heal: 300, cost: {해초:100,조개:100,민어:50} },
+    { name: "어탕", icon: "fish_tang", heal: 600, cost: {민어:200} },
     { name: "구운 생선", icon: "grilled_fish", heal: 1000, cost: {숭어:100} },
     { name: "연어 스테이크", icon: "salmon_steak", heal: 2000, cost: {연어:100} },
     { name: "고급 랍스터 정식", icon: "lobster_course", heal: 5000, cost: {랍스터:100} },
@@ -92,7 +93,7 @@
     { id:7, minLevel:60, reward:{key:"ore2",amount:100}, costs:[{key:"ore1",min:1000,max:2000},{key:"gold1",min:1000,max:2000}] },
     { id:8, minLevel:60, reward:{key:"gold2",amount:100}, costs:[{key:"wood1",min:1000,max:2000},{key:"ore1",min:1000,max:2000}] },
     { id:9, minLevel:30, reward:{key:"food0",amount:5}, randomCostKeys:["wood0","ore0","gold0"], costs:[{min:700,max:1300}] },
-    { id:10, minLevel:30, reward:{key:"food2",amount:1}, randomCostKeys:["wood0","ore0","gold0"], costs:[{min:1400,max:2600}] },
+    { id:10, minLevel:30, reward:{key:"food3",amount:1}, randomCostKeys:["wood0","ore0","gold0"], costs:[{min:1400,max:2600}] },
     { id:11, minLevel:30, reward:{key:"wood0",amount:1000}, costs:[{key:"wood1",min:100,max:200}] },
     { id:12, minLevel:30, reward:{key:"ore0",amount:1000}, costs:[{key:"ore1",min:100,max:200}] },
     { id:13, minLevel:30, reward:{key:"gold0",amount:1000}, costs:[{key:"gold1",min:100,max:200}] },
@@ -103,7 +104,18 @@
     { id:18, minLevel:90, reward:{key:"tome_ore",amount:10}, costs:[{key:"ore2",min:500,max:1500,step:1}] },
     { id:19, minLevel:90, reward:{key:"tome_gold",amount:10}, costs:[{key:"gold2",min:500,max:1500,step:1}] },
     { id:20, minLevel:90, reward:{key:"dark_blessing",amount:1}, costs:[{key:"tome_ore",min:100,max:400,step:1},{key:"tome_gold",min:100,max:400,step:1},{key:"tome_wood",min:100,max:400,step:1}] },
+    { id:21, minLevel:90, reward:{key:"transcendence",amount:1}, costs:[{key:"tome_wood",min:400,max:800,step:1},{key:"tome_ore",min:400,max:800,step:1},{key:"tome_gold",min:400,max:800,step:1}] },
+    { id:22, minLevel:60, reward:{key:"food1",amount:5}, randomCostKeys:["wood1","ore1","gold1"], costs:[{min:700,max:1300}] },
+    { id:23, minLevel:60, reward:{key:"food2",amount:5}, randomCostKeys:["wood1","ore1","gold1"], costs:[{min:1400,max:2600}] },
+    { id:24, minLevel:90, reward:{key:"food4",amount:2}, randomCostKeys:["wood2","ore2","gold2"], costs:[{min:700,max:1300}] },
+    { id:25, minLevel:90, reward:{key:"food5",amount:2}, randomCostKeys:["wood2","ore2","gold2"], costs:[{min:1400,max:2600}] },
+    { id:26, minLevel:90, reward:{key:"stone2",amount:500}, randomCostKeys:["tome_wood","tome_ore","tome_gold"], costs:[{min:10,max:20,step:1}] },
   ];
+  const SECRET_EXCHANGE_BONUS_IDS = {
+    30:new Set([1,3,4,5,11,12,13]),
+    60:new Set([2,6,7,8,14,15,16]),
+    90:new Set([17,18,19,20,21,26]),
+  };
 
   const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"ancient_world_tree", ancient_golem:"ancient_iron_golem", ancient_beast:"ancient_beast", cave_entrance:"cave_entrance", map:"map", cave_map:"ancient_cave_map", ending:"ending", true_ending:"true_ending" };
   const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집이나 동굴입구에서 휴식해 주세요.";
@@ -172,7 +184,7 @@
       rngSeed: (Date.now() >>> 0) || 1, res:{wood:[0,0,0],ore:[0,0,0],gold:[0,0,0]},
       tomes:{wood:0,ore:0,gold:0},
       fish:Object.fromEntries(FISH.map(x=>[x,0])), stones:[0,0,0], houses:[true,false,false,false,false], house:0,
-      gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foods:Array(RECIPES.length).fill(0), equippedFood:null, unseenGearIds:[], unseenFoodIndices:[], logs:[], target:null, fishState:null,
+      gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foodCatalogVersion:2, foods:Array(RECIPES.length).fill(0), equippedFood:null, unseenGearIds:[], unseenFoodIndices:[], logs:[], target:null, fishState:null,
       restProgress:0, restElapsed:0, openingSeen:false, tutorialSeen:false, secretExchange:null, worldGateUnlocked:false, ended:false, lastSeen:Date.now(), lastVisit:Date.now(), settings:{bgm:.5,sfx:.5},
     };
   }
@@ -242,8 +254,13 @@
 
   function createSecretExchange(windowId=secretWindowId(),level=S.lv) {
     const pool=SECRET_EXCHANGE_TEMPLATES.filter(template=>level>=template.minLevel).slice();
-    for(let index=pool.length-1;index>0;index--){const swap=Math.floor(rand()*(index+1));[pool[index],pool[swap]]=[pool[swap],pool[index]];}
-    const offers=pool.slice(0,SECRET_EXCHANGE_OFFER_COUNT).map(template=>{
+    const bonus=SECRET_EXCHANGE_BONUS_IDS[level>=90?90:level>=60?60:30];
+    const chosen=[];
+    while(chosen.length<SECRET_EXCHANGE_OFFER_COUNT&&pool.length){
+      const index=weightedIndex(pool.map(template=>bonus.has(template.id)?3:1),rand());
+      chosen.push(pool.splice(index,1)[0]);
+    }
+    const offers=chosen.map(template=>{
       const randomKey=template.randomCostKeys?.[Math.floor(rand()*template.randomCostKeys.length)];
       const costs=template.costs.map(cost=>({key:cost.key||randomKey,amount:randNormStep(cost.min,cost.max,cost.step??10)}));
       return {id:`secret_${windowId}_${template.id}`,templateId:template.id,reward:{...template.reward},costs,claimed:false};
@@ -402,6 +419,20 @@
     const gearIds=new Set(S.gear.map(item=>item.id));
     S.unseenGearIds=Array.from(new Set(Array.isArray(S.unseenGearIds)?S.unseenGearIds:[])).filter(id=>gearIds.has(id));
     S.unseenFoodIndices=Array.from(new Set(Array.isArray(S.unseenFoodIndices)?S.unseenFoodIndices:[])).filter(index=>Number.isInteger(index)&&foodCount(index)>0);
+  }
+
+  function migrateFoodCatalog() {
+    if(S.foodCatalogVersion===2)return false;
+    const oldFoods=Array.isArray(S.foods)?S.foods:[];
+    S.foods=[...oldFoods.slice(0,2),0,...oldFoods.slice(2)];
+    if(Number.isInteger(S.equippedFood)&&S.equippedFood>=2)S.equippedFood++;
+    if(Array.isArray(S.unseenFoodIndices))S.unseenFoodIndices=S.unseenFoodIndices.map(index=>Number.isInteger(index)&&index>=2?index+1:index);
+    for(const offer of S.secretExchange?.offers||[]){
+      const match=String(offer.reward?.key).match(/^food([2-4])$/);
+      if(match)offer.reward.key=`food${Number(match[1])+1}`;
+    }
+    S.foodCatalogVersion=2;
+    return true;
   }
 
   function markGearUnseen(id) {
@@ -921,23 +952,25 @@
 
   function secretItemMeta(key) {
     if(key==="dark_blessing")return {key,kind:"blessing",name:"칠흑의 가호",icon:"assets/items/dark_blessing.png",value:"강화 시 파괴 방지",description:"보유시 자동 사용되어 장비 파괴를 1회 방지합니다."};
+    if(key==="transcendence")return {key,kind:"special",name:"초월석",icon:"assets/items/transcendence_stone.png",value:"신의 장비 초월 강화",description:STACK_ITEMS.transcendence.description};
     const tome=String(key).match(/^tome_(wood|ore|gold)$/);
     if(tome)return {key,kind:"tome",name:TOME_LABEL[tome[1]],icon:tomeIcon(tome[1]),value:"재화",description:"신의 장비 제작과 비밀교환소에서 사용하는 비의서입니다."};
     let match=String(key).match(/^(wood|ore|gold)([0-2])$/);
     if(match){const kind=match[1],grade=+match[2];return {key,kind:"resource",name:`${GRADES[grade]} ${RESOURCE_LABEL[kind]}`,icon:resourceIcon(kind,grade),value:"재화",description:"장비를 제작하는 데 필요한 재료입니다."};}
     match=String(key).match(/^stone([0-2])$/);
     if(match){const grade=+match[1];return {key,kind:"stone",name:`${GRADES[grade]} 강화의 돌`,icon:stoneIcon(grade),value:"재화",description:"장비를 강화하는 데 필요한 재료입니다."};}
-    match=String(key).match(/^food([0-4])$/);
+    match=String(key).match(/^food([0-5])$/);
     if(match){const index=+match[1],recipe=RECIPES[index];return {key,kind:"food",index,name:recipe.name,icon:foodIcon(index),value:`체력 +${recipe.heal.toLocaleString()}`,description:`보유 ${foodCount(index).toLocaleString()}개 · 마이페이지에서 장착 또는 섭취`};}
     return {key,kind:"unknown",name:key,icon:"assets/ui/logo_mark.png",value:"",description:""};
   }
 
   function secretItemCount(key) {
     if(key==="dark_blessing")return blessingCount();
+    if(key==="transcendence")return stackCount("transcendence");
     const tome=String(key).match(/^tome_(wood|ore|gold)$/);if(tome)return capped(S.tomes[tome[1]]);
     let match=String(key).match(/^(wood|ore|gold)([0-2])$/);if(match)return capped(S.res[match[1]][+match[2]]);
     match=String(key).match(/^stone([0-2])$/);if(match)return capped(S.stones[+match[1]]);
-    match=String(key).match(/^food([0-4])$/);if(match)return foodCount(+match[1]);
+    match=String(key).match(/^food([0-5])$/);if(match)return foodCount(+match[1]);
     return 0;
   }
 
@@ -949,7 +982,7 @@
       const tome=cost.key.match(/^tome_(wood|ore|gold)$/);if(tome){S.tomes[tome[1]]-=cost.amount;continue;}
       let match=cost.key.match(/^(wood|ore|gold)([0-2])$/);if(match){S.res[match[1]][+match[2]]-=cost.amount;continue;}
       match=cost.key.match(/^stone([0-2])$/);if(match){S.stones[+match[1]]-=cost.amount;continue;}
-      match=cost.key.match(/^food([0-4])$/);if(match){S.foods[+match[1]]=capped(foodCount(+match[1])-cost.amount);}
+      match=cost.key.match(/^food([0-5])$/);if(match){S.foods[+match[1]]=capped(foodCount(+match[1])-cost.amount);}
     }
     return true;
   }
@@ -959,11 +992,12 @@
     if(current+reward.amount>MAX_ITEM_COUNT)return false;
     const meta=secretItemMeta(reward.key);
     if(meta.kind==="unknown")return false;
-    return !["food","blessing"].includes(meta.kind)||current>0||inventoryItemCount()<GEAR_CAPACITY;
+    return !["food","blessing","special"].includes(meta.kind)||current>0||inventoryItemCount()<GEAR_CAPACITY;
   }
 
   function addSecretReward(reward) {
     if(!canReceiveSecret(reward))return false;
+    if(reward.key==="transcendence"){addStack("transcendence",reward.amount);return true;}
     if(reward.key==="dark_blessing"){
       let item=S.gear.find(g=>g.type==="blessing");
       if(!item){item={id:"dark_blessing",type:"blessing",tier:0,enh:0,special:true,count:0};S.gear.push(item);}
@@ -972,7 +1006,7 @@
     const tome=reward.key.match(/^tome_(wood|ore|gold)$/);if(tome){S.tomes[tome[1]]=capped(S.tomes[tome[1]]+reward.amount);return true;}
     let match=reward.key.match(/^(wood|ore|gold)([0-2])$/);if(match){S.res[match[1]][+match[2]]=capped(S.res[match[1]][+match[2]]+reward.amount);return true;}
     match=reward.key.match(/^stone([0-2])$/);if(match){S.stones[+match[1]]=capped(S.stones[+match[1]]+reward.amount);return true;}
-    match=reward.key.match(/^food([0-4])$/);if(match){const index=+match[1];S.foods[index]=capped(foodCount(index)+reward.amount);markFoodUnseen(index);return true;}
+    match=reward.key.match(/^food([0-5])$/);if(match){const index=+match[1];S.foods[index]=capped(foodCount(index)+reward.amount);markFoodUnseen(index);return true;}
     return false;
   }
 
@@ -1466,7 +1500,7 @@
       try{const parsed=JSON.parse(raw);if(parsed.version===SAVE_VERSION)S=parsed;else{resetNotice=`업데이트 ${APP_VERSION} 적용으로 이전 세이브가 초기화되었습니다.`;await storage.remove();S=freshState();}}
       catch(error){resetNotice="손상된 세이브를 초기화했습니다.";S=freshState();}
     } else S=freshState();
-    S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;if(typeof S.tutorialSeen!=="boolean")S.tutorialSeen=!!S.openingSeen;S.secretExchange=S.secretExchange||null;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};S.foods=Array.isArray(S.foods)?S.foods:Array(RECIPES.length).fill(0);normalizeInventory();migrateBalance();refreshWorldGateUnlock();ensureSecretExchange(Date.now(),false);
+    S.settings=S.settings||{bgm:.5,sfx:.5};S.logs=Array.isArray(S.logs)?S.logs:[];S.restProgress=0;S.restElapsed=S.restElapsed||0;S.resting=!!S.resting;S.openingSeen=!!S.openingSeen;if(typeof S.tutorialSeen!=="boolean")S.tutorialSeen=!!S.openingSeen;S.secretExchange=S.secretExchange||null;S.worldGateUnlocked=!!S.worldGateUnlocked;S.fish=S.fish||{};migrateFoodCatalog();normalizeInventory();migrateBalance();refreshWorldGateUnlock();ensureSecretExchange(Date.now(),false);
     S.runId=S.runId||newId("run");
     if(endingCount()>0&&!S.gear.some(g=>g.type==="easteregg"))S.gear.push({id:"easter_egg",type:"easteregg",tier:0,enh:0,special:true});
     if(!S.logs.length)addLog("이세계에서 눈을 떴습니다.");
@@ -1488,7 +1522,7 @@
       rodMeanSeconds,
       refreshWorldGateUnlock,
       hasAllDivineGear,
-      normalizeInventory, blessingCount, targetXp, enhanceNow,
+      migrateFoodCatalog, normalizeInventory, blessingCount, targetXp, enhanceNow,
       selectEnhance:(id)=>{selectedEnhanceId=id;},
       selectGear:(id)=>{selectedGearId=id;selectedFoodIndex=null;},
       inventoryGearCount,

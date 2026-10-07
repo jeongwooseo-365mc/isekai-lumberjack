@@ -116,7 +116,7 @@ def main() -> int:
     for name in resources:
         check_image(f"assets/resources/{name}", (256, 256))
 
-    for name in ("grilled_fish", "fish_soup", "salmon_steak", "seafood_stew", "lobster_course"):
+    for name in ("grilled_fish", "fish_soup", "fish_tang", "salmon_steak", "seafood_stew", "lobster_course"):
         check_image(f"assets/foods/{name}.png", (256, 256))
 
     ui_names = ("armor", "attack", "auto", "cooking", "energy", "enhance", "map", "potion", "profile", "realestate", "settings", "workshop")
