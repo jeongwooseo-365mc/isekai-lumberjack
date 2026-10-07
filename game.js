@@ -4,12 +4,13 @@
   const APP_VERSION = "1.3.0";
   // Keep the ending review conditions until the user requests their rollback.
   const ENDING_REVIEW_RELEASE = false;
-  const ANCIENT_XP = 10000000;
+  const ANCIENT_XP = 30000000;
   const ANCIENT = {
     worldtree:{name:"고대 세계수",weapon:"axe",kind:"wood",sprite:"worldtree",bg:"worldtree_cave"},
     ancient_golem:{name:"고대 철골렘",weapon:"pickaxe",kind:"ore",sprite:"ancient_golem",bg:"ancient_golem_cave"},
     ancient_beast:{name:"고대 괴수",weapon:"sword",kind:"gold",sprite:"ancient_beast",bg:"ancient_beast_cave"},
   };
+  const BLESSING_DESCRIPTION = "보유시 자동 사용되어 장비 파괴를 1회 방지합니다. (초월강화제외)";
   const STACK_ITEMS = {
     blessing:{name:"칠흑의 가호",icon:"dark_blessing",description:"강화 시 파괴 방지"},
     token_wood:{name:"고대의 증표(목)",icon:"ancient_token_wood",description:"오래된 문을 여는 데 필요한 증표"},
@@ -364,7 +365,7 @@
     const item=S.gear.find(g=>g.type===type);if(!item||stackCount(type)<amount)return false;
     item.count-=amount;if(item.count===0){S.gear=S.gear.filter(g=>g!==item);markGearSeen(item.id);}return true;
   }
-  function specialDescription(g) { return g.type==="blessing"?"보유시 자동 사용되어 장비 파괴를 1회 방지합니다.":STACK_ITEMS[g.type]?.description||"엔딩 완료 영구 징표"; }
+  function specialDescription(g) { return g.type==="blessing"?BLESSING_DESCRIPTION:STACK_ITEMS[g.type]?.description||"엔딩 완료 영구 징표"; }
   function consumeBlessing() {
     const item=S.gear.find(g=>g.type==="blessing");
     if(!item||blessingCount()<=0)return false;
@@ -583,7 +584,7 @@
     const boss=ANCIENT[S.place],drop=ancientDropKind(rand());
     addXp(ANCIENT_XP,at);let count=1,icon,name;
     if(drop==="tome"){
-      count=randNorm(50,100);S.tomes[boss.kind]=capped(S.tomes[boss.kind]+count);icon=tomeIcon(boss.kind);name=TOME_LABEL[boss.kind];
+      count=randNorm(300,600);S.tomes[boss.kind]=capped(S.tomes[boss.kind]+count);icon=tomeIcon(boss.kind);name=TOME_LABEL[boss.kind];
     }else{
       const type=drop==="token"?`token_${boss.kind}`:drop;
       const item=addStack(type,1);icon=gearIcon(item);name=gearDisplayName(item);
@@ -951,7 +952,7 @@
   }
 
   function secretItemMeta(key) {
-    if(key==="dark_blessing")return {key,kind:"blessing",name:"칠흑의 가호",icon:"assets/items/dark_blessing.png",value:"강화 시 파괴 방지",description:"보유시 자동 사용되어 장비 파괴를 1회 방지합니다."};
+    if(key==="dark_blessing")return {key,kind:"blessing",name:"칠흑의 가호",icon:"assets/items/dark_blessing.png",value:"강화 시 파괴 방지",description:BLESSING_DESCRIPTION};
     if(key==="transcendence")return {key,kind:"special",name:"초월석",icon:"assets/items/transcendence_stone.png",value:"신의 장비 초월 강화",description:STACK_ITEMS.transcendence.description};
     const tome=String(key).match(/^tome_(wood|ore|gold)$/);
     if(tome)return {key,kind:"tome",name:TOME_LABEL[tome[1]],icon:tomeIcon(tome[1]),value:"재화",description:"신의 장비 제작과 비밀교환소에서 사용하는 비의서입니다."};
@@ -1171,7 +1172,7 @@
     const step=g.enh+1;
     if(g.tier<=1)return{0:step}; if(g.tier===2)return{0:step,1:step}; if(g.tier===3)return{1:step,2:step}; return{2:step*2};
   }
-  function enhChance(g){return g.tier===4&&g.enh===10?50:95-g.enh*5;}
+  function enhChance(g){return g.tier===4&&g.enh===10?30:95-g.enh*5;}
   function maxEnhancement(g){return g.tier===4?11:10;}
   function enhancementHave(key){return key==="transcendence"?stackCount(key):S.stones[key];}
 
@@ -1180,12 +1181,14 @@
     setOverlayHeader("강화");
     if(!g){dom.overlayContent.innerHTML="<p>강화할 장비가 없습니다.</p>";return;}
     const req=g.enh<maxEnhancement(g)?enhRequirements(g):{},ok=Object.entries(req).every(([k,v])=>enhancementHave(k)>=v);
+    const transcending=g.tier===4&&g.enh===10;
+    const failureHint=g.tier===0?"실패해도 보존":transcending?(blessingCount()>0?"실패 시 장비 파괴(칠흑의 가호 사용불가)":"실패 시 장비 파괴"):blessingCount()>0?`실패 시 칠흑의 가호 자동 사용 · 보유 ${blessingCount().toLocaleString()}개`:"실패 시 장비 파괴";
     const reqHtml=Object.entries(req).map(([grade,need])=>`<div class="requirement-row ${enhancementHave(grade)<need?"missing":""}"><img src="${grade==="transcendence"?"assets/items/transcendence_stone.png":stoneIcon(+grade)}" alt=""><span>${grade==="transcendence"?"초월석":`${GRADES[grade]} 강화의 돌`}</span><b>${enhancementHave(grade).toLocaleString()} / ${need}</b></div>`).join("");
-    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.enh>=maxEnhancement(g)?"최대 강화":`성공 확률 ${enhChance(g)}%`}<br>${g.tier===0?"실패해도 보존":blessingCount()>0?`실패 시 칠흑의 가호 자동 사용 · 보유 ${blessingCount().toLocaleString()}개`:"실패 시 장비 파괴"}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${g.enh>=maxEnhancement(g)?`<div class="requirement-row"><img src="assets/ui/enhance.png" alt=""><span>최대 강화입니다</span><b>+${maxEnhancement(g)}</b></div>`:reqHtml}<button class="primary-button wide-action" data-do="enhance-now" ${g.enh>=maxEnhancement(g)||!ok||enhancing?"disabled":""}>${enhancing?"강화 중입니다…":"강화 시작"}</button></div></div><div class="section-title">보유 장비</div><div class="item-list">${candidates.map(item=>`<button class="item-card ${item.id===g.id?"selected":""}" data-do="enhance-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${gearEffectText(item)}</small></span></button>`).join("")}</div>`;
+    dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.enh>=maxEnhancement(g)?"최대 강화":`성공 확률 ${enhChance(g)}%`}<br>${failureHint}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${g.enh>=maxEnhancement(g)?`<div class="requirement-row"><img src="assets/ui/enhance.png" alt=""><span>최대 강화입니다</span><b>+${maxEnhancement(g)}</b></div>`:reqHtml}<button class="primary-button wide-action" data-do="enhance-now" ${g.enh>=maxEnhancement(g)||!ok||enhancing?"disabled":""}>${enhancing?"강화 중입니다…":"강화 시작"}</button></div></div><div class="section-title">보유 장비</div><div class="item-list">${candidates.map(item=>`<button class="item-card ${item.id===g.id?"selected":""}" data-do="enhance-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${gearEffectText(item)}</small></span></button>`).join("")}</div>`;
   }
 
   function enhanceNow() {
-    const g=gearById(selectedEnhanceId);if(!g||g.special||g.enh>=maxEnhancement(g)||enhancing)return;const req=enhRequirements(g);
+    const g=gearById(selectedEnhanceId);if(!g||g.special||g.enh>=maxEnhancement(g)||enhancing)return;const req=enhRequirements(g),transcending=g.tier===4&&g.enh===10;
     if(!Object.entries(req).every(([k,v])=>enhancementHave(k)>=v)){playSfx("ui_error");return;}
     for(const[k,v]of Object.entries(req)){if(k==="transcendence")consumeStack(k,v);else S.stones[k]-=v;}enhancing=true;playSfx("enhance_start");renderEnhance();toast("강화 중입니다…",3900);persist();
     setTimeout(()=>{
@@ -1193,7 +1196,7 @@
       const success=rand()*100<enhChance(g);enhancing=false;
       if(success){g.enh++;markGearUnseen(g.id);addLog(`${TIERS[g.tier]} ${GEAR_LABEL[g.type]} +${g.enh} 강화 성공!`,gearIcon(g),"good");playSfx("enhance_success");toast(`강화 성공! +${g.enh}`);}
       else if(g.tier===0){addLog(`허름한 ${GEAR_LABEL[g.type]} 강화 실패. 장비는 보존되었습니다.`,gearIcon(g),"warn");playSfx("enhance_fail");toast("강화 실패 · 장비 보존");}
-      else if(consumeBlessing()){addLog(`${gearDisplayName(g)} 강화 실패. 칠흑의 가호 1개를 사용하여 장비 파괴를 막았습니다.`,"assets/items/dark_blessing.png","good");playSfx("enhance_fail");toast("칠흑의 가호 사용 · 장비 보존");}
+      else if(!transcending&&consumeBlessing()){addLog(`${gearDisplayName(g)} 강화 실패. 칠흑의 가호 1개를 사용하여 장비 파괴를 막았습니다.`,"assets/items/dark_blessing.png","good");playSfx("enhance_fail");toast("칠흑의 가호 사용 · 장비 보존");}
       else {const label=`${TIERS[g.tier]} ${GEAR_LABEL[g.type]}${g.enh?` +${g.enh}`:""}`;S.gear=S.gear.filter(x=>x.id!==g.id);markGearSeen(g.id);if(S.equipped[g.type]===g.id){const replacement=S.gear.filter(x=>x.type===g.type).sort((a,b)=>gearPower(b)-gearPower(a))[0];S.equipped[g.type]=replacement?.id||null;if(g.type==="armor")S.hp=Math.min(S.hp,maxHp());}selectedEnhanceId=null;addLog(`${label} 강화 실패. 장비가 파괴되었습니다.`,gearIcon(g),"warn");playSfx("gear_break");toast("강화 실패 · 장비 파괴");}
       if(dom.overlay.classList.contains("open"))renderView();render();persist();
     },4000);
