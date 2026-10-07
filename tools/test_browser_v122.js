@@ -241,6 +241,6 @@ const server=http.createServer((req,res)=>{
       await context.close();
     }
     assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, ancient bosses, cave map, designated weapons, auto, both ending sequences, trophy stack, tome/blessing exchange and saved protection stack, all menu headers, named top-area reflection logs\n");
-    console.log("Browser v1.3.0 QA: PASS");
+    console.log("Browser v1.3.1 QA: PASS");
   }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.3.0";
+  const APP_VERSION = "1.3.1";
   // Keep the ending review conditions until the user requests their rollback.
   const ENDING_REVIEW_RELEASE = false;
   const ANCIENT_XP = 30000000;
