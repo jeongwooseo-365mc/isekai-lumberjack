@@ -48,14 +48,16 @@ module.exports=async function testV131Stage12({game:g,element,localStorage,asser
     a.deepEqual(Array.from(t.randomCostKeys||t.costs.map(c=>c.key)),costs);
     a(t.costs.every(c=>c.min===min&&c.max===max));
   }
-  for(const [level,bonus]of [[30,[1,3,4,5,11,12,13]],[60,[2,6,7,8,14,15,16]],[90,[17,18,19,20,21,26]]]){
+  for(const [level,bonus]of [[30,[1,3,4,5,11,12,13]],[60,[1,2,6,7,8,14,15,16]],[90,[2,17,18,19,20,21,26]]]){
     const hits=new Map();s.rngSeed=783219+level;
     for(let i=0;i<800;i++){
       const offers=g.createSecretExchange(`v131-${level}-${i}`,level).offers;
       a.equal(offers.length,4);a.equal(new Set(offers.map(o=>o.templateId)).size,4);
       for(const o of offers){
         a(byId(o.templateId).minLevel<=level);hits.set(o.templateId,(hits.get(o.templateId)||0)+1);
-        for(const c of o.costs){const t=byId(o.templateId),rule=t.costs[o.costs.indexOf(c)];a(c.amount>=rule.min&&c.amount<=rule.max);a.equal(c.amount%(rule.step||10),0);}
+        const multiplier=o.reward.amount/byId(o.templateId).reward.amount;
+        a(o.reward.key.startsWith("food")?Number.isInteger(multiplier)&&multiplier>=1&&multiplier<=5:multiplier===1);
+        for(const c of o.costs){const t=byId(o.templateId),rule=t.costs[o.costs.indexOf(c)];a(c.amount/multiplier>=rule.min&&c.amount/multiplier<=rule.max);a.equal(c.amount%((rule.step||10)*multiplier),0);}
         if(o.templateId===26)a(["tome_wood","tome_ore","tome_gold"].includes(o.costs[0].key));
       }
     }

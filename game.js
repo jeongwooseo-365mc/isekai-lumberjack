@@ -114,8 +114,8 @@
   ];
   const SECRET_EXCHANGE_BONUS_IDS = {
     30:new Set([1,3,4,5,11,12,13]),
-    60:new Set([2,6,7,8,14,15,16]),
-    90:new Set([17,18,19,20,21,26]),
+    60:new Set([1,2,6,7,8,14,15,16]),
+    90:new Set([2,17,18,19,20,21,26]),
   };
 
   const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"ancient_world_tree", ancient_golem:"ancient_iron_golem", ancient_beast:"ancient_beast", cave_entrance:"cave_entrance", map:"map", cave_map:"ancient_cave_map", ending:"ending", true_ending:"true_ending" };
@@ -262,9 +262,10 @@
       chosen.push(pool.splice(index,1)[0]);
     }
     const offers=chosen.map(template=>{
+      const multiplier=template.reward.key.startsWith("food")?1+Math.floor(rand()*5):1;
       const randomKey=template.randomCostKeys?.[Math.floor(rand()*template.randomCostKeys.length)];
-      const costs=template.costs.map(cost=>({key:cost.key||randomKey,amount:randNormStep(cost.min,cost.max,cost.step??10)}));
-      return {id:`secret_${windowId}_${template.id}`,templateId:template.id,reward:{...template.reward},costs,claimed:false};
+      const costs=template.costs.map(cost=>({key:cost.key||randomKey,amount:randNormStep(cost.min,cost.max,cost.step??10)*multiplier}));
+      return {id:`secret_${windowId}_${template.id}`,templateId:template.id,reward:{...template.reward,amount:template.reward.amount*multiplier},costs,claimed:false};
     });
     return {windowId,offers,balanceVersion:APP_VERSION};
   }
