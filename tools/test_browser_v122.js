@@ -238,6 +238,33 @@ const server=http.createServer((req,res)=>{
           assert(await page.locator('#introScreen').evaluate(el=>el.classList.contains('active')));
         }
       }
+      // Ancient shop: actual tab navigation, capacity-safe +5 creation, and repeat exchange.
+      await page.evaluate(()=>{
+        const g=window.__GAME_DEBUG__;g.returnToIntroAfterEnding();g.replaceMeta({endingSeen:true,endingCount:1,lastEndingId:null});
+        const s=g.freshState();s.lv=150;s.openingSeen=true;s.tutorialSeen=true;s.ancientDefeated={worldtree:true,ancient_golem:true,ancient_beast:true};
+        s.tomes={wood:1000,ore:1000,gold:1000};s.stones[2]=1000;for(const kind of ["wood","ore","gold"])s.res[kind][2]=20000;
+        g.replaceState(s);g.renderIntro();
+      });
+      await page.getByRole("button",{name:"게임 시작",exact:true}).click();
+      await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
+      await page.getByRole("button",{name:"제작소",exact:true}).click();
+      const ancientTab=page.locator('[data-do="workshop-type"][data-type="ancient"]');
+      assert.equal(await ancientTab.count(),1);
+      assert(await ancientTab.evaluate(el=>el.previousElementSibling.dataset.type==="secret"));
+      await ancientTab.click();
+      assert.equal(await page.locator('[data-do="ancient-shop-item"]').count(),8);
+      assert((await page.locator(".detail-copy h3").innerText()).includes("+5"));
+      assert(await page.locator("#overlayContent").evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+      await page.locator('[data-do="ancient-exchange"]').click();
+      await page.locator('[data-do="ancient-exchange"]').click();
+      assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().gear.filter(item=>item.type==="axe"&&item.tier===4&&item.enh===5).length),2);
+      await page.locator('[data-do="ancient-shop-item"][data-id="armor"]').click();
+      assert.equal(await page.locator(".requirement-row").count(),7);
+      await page.waitForFunction(()=>Array.from(document.querySelectorAll("#overlayContent img")).every(img=>img.complete&&img.naturalWidth>0));
+      await page.screenshot({path:path.join(out,`ancient-shop-${width}x${height}.png`)});
+      await page.locator('[data-do="ancient-shop-item"][data-id="wood"]').click();
+      await page.locator('[data-do="ancient-exchange"]').click();
+      assert.equal(await page.evaluate(()=>window.__GAME_DEBUG__.state().res.wood[2]),11000);
       await context.close();
     }
     assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"result.txt"),"PASS: mobile/tablet/desktop, 3 crystal areas, images, wallet, recipe charge, old/new save reload, ancient bosses, cave map, designated weapons, auto, both ending sequences, trophy stack, tome/blessing exchange and saved protection stack, all menu headers, named top-area reflection logs\n");

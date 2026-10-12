@@ -214,6 +214,7 @@ setTimeout(async()=>{
     await require("./test_v127_cases")({game,element,localStorage,assert});
     await require("./test_v131_stage12")({game,element,localStorage,assert});
     await require("./test_v132_stage1")({game,element,localStorage,assert});
+    await require("./test_v132_stage2")({game,element,localStorage,assert});
     console.log("game logic smoke tests: OK");
     process.exit(0);
   } catch(error) { console.error(error.stack||error); process.exit(1); }
