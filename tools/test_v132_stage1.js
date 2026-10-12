@@ -45,9 +45,10 @@ module.exports=async function({game:g,localStorage,assert:a}){
   s.res[resource][2]=cost.amount;
   const offerId=savedOffer.id;
   s.secretExchange={windowId:g.secretWindowId(),balanceVersion:"1.3.1",offers:[savedOffer,...[1,2,3].map(i=>({id:`already-claimed-${i}`,reward:{key:"wood0",amount:1},costs:[],claimed:true}))]};
-  const snapshot=JSON.stringify(s.secretExchange);
+  const snapshot=JSON.stringify(s.secretExchange.offers),windowId=s.secretExchange.windowId;
   localStorage.setItem(g.constants.SAVE_KEY,JSON.stringify(s));await g.init();s=g.state();
-  a.equal(JSON.stringify(s.secretExchange),snapshot,"reloading preserves multiplied and previously claimed offers");
+  a.equal(JSON.stringify(s.secretExchange.offers),snapshot,"reloading preserves multiplied and previously claimed offers");
+  a.equal(s.secretExchange.windowId,windowId);a.equal(s.secretExchange.balanceVersion,"1.3.2","only the balance metadata changes on upgrade");
   g.selectSecretOffer(offerId);a(g.exchangeSelectedSecret());
   a.equal(s.foods[5],10);a.equal(s.res[resource][2],0);
   a(s.secretExchange.offers[0].claimed);a.equal(g.exchangeSelectedSecret(),false,"a batch cannot be purchased twice");
