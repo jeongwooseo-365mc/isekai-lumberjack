@@ -588,7 +588,7 @@
   }
 
   function ancientDropKind(roll,hasEgg=endingCount()>0) {
-    return !hasEgg||roll<.30?"token":roll<.80?"tome":roll<.90?"blessing":"transcendence";
+    return !hasEgg||roll<.20?"token":roll<.80?"tome":roll<.90?"blessing":"transcendence";
   }
   function defeatAncient(at=Date.now(),visual=true) {
     const boss=ANCIENT[S.place],drop=ancientDropKind(rand());
