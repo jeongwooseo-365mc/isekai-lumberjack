@@ -63,10 +63,10 @@ jobs:
         with:
           python-version: "3.12"
       - name: Verify project assets and release configuration
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          pip install Pillow
+          sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y ffmpeg
+          pip install --timeout 60 --retries 2 Pillow
           python3 tools/validate_project.py
       - name: Initialize Android project
         run: npx tauri android init --ci
