@@ -40,6 +40,8 @@ jobs:
       - name: Select installed Android NDK
         shell: bash
         run: echo "NDK_HOME=$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)" >> "$GITHUB_ENV"
+      - name: Prefer primary Ubuntu package mirror
+        run: sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
       - name: Install dependencies
         run: npm install
       - name: Verify game logic
