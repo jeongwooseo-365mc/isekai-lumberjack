@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.3.1";
+  const APP_VERSION = "1.3.2";
   // Keep the ending review conditions until the user requests their rollback.
   const ENDING_REVIEW_RELEASE = false;
   const ANCIENT_XP = 30000000;
@@ -114,11 +114,19 @@
   ];
   const SECRET_EXCHANGE_BONUS_IDS = {
     30:new Set([1,3,4,5,11,12,13]),
-    60:new Set([2,6,7,8,14,15,16]),
-    90:new Set([17,18,19,20,21,26]),
+    60:new Set([1,2,6,7,8,14,15,16]),
+    90:new Set([2,17,18,19,20,21,26]),
   };
 
   const BGM_FILES = { title:"title", home:"home", forest:"forest", mine:"mine", pond:"pond", dungeon:"dungeon", worldtree:"ancient_world_tree", ancient_golem:"ancient_iron_golem", ancient_beast:"ancient_beast", cave_entrance:"cave_entrance", map:"map", cave_map:"ancient_cave_map", ending:"ending", true_ending:"true_ending" };
+  const ANCIENT_SHOP_ITEMS = [
+    {id:"axe",gearType:"axe",costs:[{key:"wood2",amount:5000},{key:"gold2",amount:5000},{key:"tome_wood",amount:250},{key:"stone2",amount:50}]},
+    {id:"pickaxe",gearType:"pickaxe",costs:[{key:"ore2",amount:5000},{key:"gold2",amount:5000},{key:"tome_ore",amount:250},{key:"stone2",amount:50}]},
+    {id:"sword",gearType:"sword",costs:[{key:"wood2",amount:5000},{key:"ore2",amount:5000},{key:"tome_gold",amount:250},{key:"stone2",amount:50}]},
+    {id:"rod",gearType:"rod",costs:[{key:"wood2",amount:1000},{key:"ore2",amount:1000},{key:"gold2",amount:2000},{key:"tome_ore",amount:50},{key:"tome_wood",amount:50},{key:"tome_gold",amount:100},{key:"stone2",amount:50}]},
+    {id:"armor",gearType:"armor",costs:[{key:"wood2",amount:2000},{key:"ore2",amount:2000},{key:"gold2",amount:1000},{key:"tome_ore",amount:50},{key:"tome_wood",amount:50},{key:"tome_gold",amount:100},{key:"stone2",amount:50}]},
+    ...["wood","ore","gold"].map(kind=>({id:kind,reward:{key:`${kind}2`,amount:1000},costs:[{key:`tome_${kind}`,amount:10}]})),
+  ];
   const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집이나 동굴입구에서 휴식해 주세요.";
   const SFX_FILES = new Set([
     "ui_click","ui_back","ui_confirm","ui_error","auto_on","auto_off","axe_swing","axe_hit","tree_break",
@@ -169,6 +177,7 @@
   let normalCreditsHtml=null;
   let menuOpen = false;
   let selectedSecretOfferId = null;
+  let selectedAncientShopId = "axe";
   let tutorialStage = "";
 
   function newId(prefix="g") { return `${prefix}_${Date.now().toString(36)}_${Math.floor(Math.random()*1e9).toString(36)}`; }
@@ -183,7 +192,7 @@
     return {
       version: SAVE_VERSION, runId:newId("run"), lv:1, xp:0, hp:500, place:"home", grade:0, auto:false, resting:false,
       rngSeed: (Date.now() >>> 0) || 1, res:{wood:[0,0,0],ore:[0,0,0],gold:[0,0,0]},
-      tomes:{wood:0,ore:0,gold:0},
+      tomes:{wood:0,ore:0,gold:0}, ancientDefeated:{worldtree:false,ancient_golem:false,ancient_beast:false}, ancientShopUnlocked:false,
       fish:Object.fromEntries(FISH.map(x=>[x,0])), stones:[0,0,0], houses:[true,false,false,false,false], house:0,
       gear, equipped:Object.fromEntries(gear.filter(g=>!g.special).map(g=>[g.type,g.id])), foodCatalogVersion:2, foods:Array(RECIPES.length).fill(0), equippedFood:null, unseenGearIds:[], unseenFoodIndices:[], logs:[], target:null, fishState:null,
       restProgress:0, restElapsed:0, openingSeen:false, tutorialSeen:false, secretExchange:null, worldGateUnlocked:false, ended:false, lastSeen:Date.now(), lastVisit:Date.now(), settings:{bgm:.5,sfx:.5},
@@ -262,9 +271,10 @@
       chosen.push(pool.splice(index,1)[0]);
     }
     const offers=chosen.map(template=>{
+      const multiplier=template.reward.key.startsWith("food")?1+Math.floor(rand()*5):1;
       const randomKey=template.randomCostKeys?.[Math.floor(rand()*template.randomCostKeys.length)];
-      const costs=template.costs.map(cost=>({key:cost.key||randomKey,amount:randNormStep(cost.min,cost.max,cost.step??10)}));
-      return {id:`secret_${windowId}_${template.id}`,templateId:template.id,reward:{...template.reward},costs,claimed:false};
+      const costs=template.costs.map(cost=>({key:cost.key||randomKey,amount:randNormStep(cost.min,cost.max,cost.step??10)*multiplier}));
+      return {id:`secret_${windowId}_${template.id}`,templateId:template.id,reward:{...template.reward,amount:template.reward.amount*multiplier},costs,claimed:false};
     });
     return {windowId,offers,balanceVersion:APP_VERSION};
   }
@@ -578,10 +588,13 @@
   }
 
   function ancientDropKind(roll,hasEgg=endingCount()>0) {
-    return !hasEgg||roll<.30?"token":roll<.80?"tome":roll<.90?"blessing":"transcendence";
+    return !hasEgg||roll<.20?"token":roll<.80?"tome":roll<.90?"blessing":"transcendence";
   }
   function defeatAncient(at=Date.now(),visual=true) {
     const boss=ANCIENT[S.place],drop=ancientDropKind(rand());
+    S.ancientDefeated=S.ancientDefeated||{};
+    S.ancientDefeated[S.place]=true;
+    refreshAncientShopUnlock();
     addXp(ANCIENT_XP,at);let count=1,icon,name;
     if(drop==="tome"){
       count=randNorm(300,600);S.tomes[boss.kind]=capped(S.tomes[boss.kind]+count);icon=tomeIcon(boss.kind);name=TOME_LABEL[boss.kind];
@@ -1076,8 +1089,55 @@
     dom.overlayContent.innerHTML=`<div class="tier-grid">${[0,1,2,3].map(grade=>`<button class="tier-option ${AREA_ASSET_GRADES[grade]}" data-do="travel" data-place="${place}" data-grade="${grade}"><img src="assets/targets/${place==="forest"?"tree":place==="mine"?"ore":"monster"}_${AREA_ASSET_GRADES[grade]}.png" alt=""><span><strong>${GRADES[grade]} ${PLACE_LABEL[place]}</strong><small>HP ${TARGET_STATS[grade].min.toLocaleString()}~${TARGET_STATS[grade].max.toLocaleString()} · 방어력 ${TARGET_STATS[grade].def.toLocaleString()} · EXP ${compactXp(targetXp(grade))}${grade===3?" · 반사 피해 5~20":""}</small></span></button>`).join("")}</div>`;
   }
 
+  function refreshAncientShopUnlock() {
+    if(!S)return false;
+    if(endingCount()>0&&Object.keys(ANCIENT).every(place=>S.ancientDefeated?.[place]===true))S.ancientShopUnlocked=true;
+    return endingCount()>0&&S.ancientShopUnlocked===true;
+  }
+
+  function workshopTabsHtml(active) {
+    const gearTabs=Object.keys(GEAR_LABEL).map(key=>`<button class="${key===active?"active":""}" data-do="workshop-type" data-type="${key}">${GEAR_LABEL[key]}</button>`).join("");
+    const secretTab=secretExchangeVisible()?`<button class="secret-tab ${active==="secret"?"active":""}" data-do="workshop-type" data-type="secret">비밀교환소</button>`:"";
+    const ancientTab=refreshAncientShopUnlock()?`<button class="ancient-tab ${active==="ancient"?"active":""}" data-do="workshop-type" data-type="ancient">고대 상점</button>`:"";
+    return `<div class="category-tabs">${gearTabs}${secretTab}${ancientTab}</div>`;
+  }
+
+  function ancientShopRewardMeta(item) {
+    if(!item.gearType)return secretItemMeta(item.reward.key);
+    const gear={type:item.gearType,tier:4,enh:5};
+    return {name:gearDisplayName(gear),icon:gearIcon(gear),value:gearEffectText(gear),description:"같은 장비를 여러 개 교환할 수 있습니다."};
+  }
+
+  function canReceiveAncientShop(item) {
+    return item.gearType?inventoryItemCount()<GEAR_CAPACITY:canReceiveSecret(item.reward);
+  }
+
+  function renderAncientShop() {
+    if(!refreshAncientShopUnlock()){selectedWorkshop={type:"axe",tier:1};return renderWorkshop();}
+    const item=ANCIENT_SHOP_ITEMS.find(item=>item.id===selectedAncientShopId)||ANCIENT_SHOP_ITEMS[0];
+    selectedAncientShopId=item.id;
+    const meta=ancientShopRewardMeta(item),label=meta.name+(item.reward?` x${item.reward.amount.toLocaleString()}`:"");
+    setOverlayHeader("고대 상점");
+    dom.overlayContent.innerHTML=`${workshopTabsHtml("ancient")}<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${meta.icon}" alt="">${item.gearType?'<i class="enh-badge">+5</i>':""}</div><div class="detail-copy"><h3>${label}</h3><p class="value">${meta.value}</p><p>${meta.description}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${secretRequirementHtml(item.costs)}<button class="primary-button wide-action ancient-exchange-button" data-do="ancient-exchange" ${canPaySecret(item.costs)&&canReceiveAncientShop(item)?"":"disabled"}>교환하기</button></div></div><div class="section-title">교환 목록</div><div class="item-list">${ANCIENT_SHOP_ITEMS.map(entry=>{const reward=ancientShopRewardMeta(entry);return `<button class="item-card ${entry.id===item.id?"selected":""}" data-do="ancient-shop-item" data-id="${entry.id}"><img src="${reward.icon}" alt=""><span><b>${reward.name}${entry.reward?` x${entry.reward.amount.toLocaleString()}`:""}</b><small>${reward.value}</small></span></button>`;}).join("")}</div><div class="section-title">보유 재화</div>${walletHtml()}`;
+  }
+
+  function exchangeSelectedAncientShop() {
+    if(!refreshAncientShopUnlock())return false;
+    const item=ANCIENT_SHOP_ITEMS.find(entry=>entry.id===selectedAncientShopId);
+    if(!item||!canPaySecret(item.costs)){toast("교환에 필요한 아이템이 부족합니다.");playSfx("ui_error");return false;}
+    if(!canReceiveAncientShop(item)){toast(item.gearType?"보관함이 가득 찼습니다.":"보유 한도를 초과해 교환할 수 없습니다.");playSfx("ui_error");return false;}
+    if(!paySecret(item.costs))return false;
+    if(item.gearType){
+      const gear={id:newId(item.gearType),type:item.gearType,tier:4,enh:5};
+      S.gear.push(gear);markGearUnseen(gear.id);refreshWorldGateUnlock(true);
+    }else addSecretReward(item.reward);
+    const meta=ancientShopRewardMeta(item);addLog(`고대 상점: ${meta.name}${item.reward?` x${item.reward.amount.toLocaleString()}`:""} 교환 완료.`,meta.icon,"rare");
+    playSfx("purchase");toast("교환이 완료되었습니다.");renderAncientShop();renderHud();persist();return true;
+  }
+
   function renderWorkshop() {
     ensureSecretExchange(Date.now());
+    if(selectedWorkshop.type==="ancient")return renderAncientShop();
     if(selectedWorkshop.type==="secret"){
       if(secretExchangeVisible())return renderSecretExchange();
       selectedWorkshop={type:"axe",tier:1};
@@ -1085,9 +1145,8 @@
     const {type,tier}=selectedWorkshop, cost=GEAR_COST[type][tier], sample={type,tier,enh:0};
     setOverlayHeader("제작소");
     const stat=gearEffectText(sample);
-    const secretTab=secretExchangeVisible()?`<button class="secret-tab" data-do="workshop-type" data-type="secret">비밀교환소</button>`:"";
     dom.overlayContent.innerHTML=`
-      <div class="category-tabs">${Object.keys(GEAR_LABEL).map(key=>`<button class="${key===type?"active":""}" data-do="workshop-type" data-type="${key}">${GEAR_LABEL[key]}</button>`).join("")}${secretTab}</div>
+      ${workshopTabsHtml(type)}
       <div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(sample)}" alt=""></div><div class="detail-copy"><h3>${TIERS[tier]} ${GEAR_LABEL[type]}</h3><p class="value">${stat}</p><p>${tier===0?"처음 지급되는 기본 장비입니다.":"같은 장비를 여러 개 제작할 수 있습니다."}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${requirementHtml(cost)}<button class="primary-button wide-action" data-do="craft" ${tier===0||!canPay(cost)||crafting?"disabled":""}>${tier===0?"기본 지급":crafting?"제작 완료!":"제작하기"}</button></div></div>
       <div class="section-title">제작 목록</div><div class="item-list">${[0,1,2,3,4].map(i=>{const item={type,tier:i,enh:0};return `<button class="item-card ${i===tier?"selected":""}" data-do="workshop-tier" data-tier="${i}"><img src="assets/items/${type}_${i}.png" alt=""><span><b>${TIERS[i]} ${GEAR_LABEL[type]}</b><small>${gearEffectText(item)}</small></span></button>`;}).join("")}</div>
       <div class="section-title">보유 재화</div>${walletHtml()}`;
@@ -1100,9 +1159,8 @@
     let offer=offers.find(item=>item.id===selectedSecretOfferId)||offers[0];selectedSecretOfferId=offer.id;
     const reward=secretItemMeta(offer.reward.key),canExchange=canPaySecret(offer.costs)&&canReceiveSecret(offer.reward);
     setOverlayHeader("비밀교환소");
-    const tabs=Object.keys(GEAR_LABEL).map(key=>`<button data-do="workshop-type" data-type="${key}">${GEAR_LABEL[key]}</button>`).join("");
     dom.overlayContent.innerHTML=`
-      <div class="category-tabs">${tabs}<button class="secret-tab active" data-do="workshop-type" data-type="secret">비밀교환소</button></div>
+      ${workshopTabsHtml("secret")}
       <div class="detail-card secret-detail"><div class="detail-hero"><div class="detail-icon"><img src="${reward.icon}" alt=""></div><div class="detail-copy"><h3>${reward.name} x${offer.reward.amount.toLocaleString()}</h3><p class="value">${reward.value}</p><p>${reward.description}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${secretRequirementHtml(offer.costs)}<button class="primary-button wide-action secret-exchange-button" data-do="secret-exchange" data-secret-countdown ${canExchange?"":"disabled"}>교환하기 · ${secretCountdownLabel(now)}</button></div></div>
       <div class="section-title">한정 교환 목록 · 남은 ${offers.length}/${SECRET_EXCHANGE_OFFER_COUNT}</div><div class="item-list">${offers.map(item=>{const meta=secretItemMeta(item.reward.key);return `<button class="item-card ${item.id===offer.id?"selected":""}" data-do="secret-offer" data-id="${item.id}"><img src="${meta.icon}" alt=""><span><b>${meta.name} x${item.reward.amount.toLocaleString()}</b><small>${item.costs.map(cost=>`${secretItemMeta(cost.key).name} ${cost.amount.toLocaleString()}`).join(" · ")}</small></span></button>`;}).join("")}</div>
       <div class="section-title">보유 재화</div>${walletHtml()}`;
@@ -1126,6 +1184,7 @@
 
   function craftSelected() {
     if(crafting)return;
+    if(!Object.hasOwn(GEAR_COST,selectedWorkshop.type))return;
     const {type,tier}=selectedWorkshop, cost=GEAR_COST[type][tier];
     if(inventoryItemCount()>=GEAR_CAPACITY){toast("보관함이 가득 찼습니다. 장비를 버리거나 음식을 사용해 주세요.");playSfx("ui_error");return;}
     if(tier===0||!pay(cost)){playSfx("ui_error");return;}
@@ -1435,6 +1494,8 @@
     else if(action==="workshop-tier"){selectedWorkshop.tier=+el.dataset.tier;renderWorkshop();}
     else if(action==="secret-offer"){selectedSecretOfferId=el.dataset.id;renderSecretExchange();}
     else if(action==="secret-exchange")exchangeSelectedSecret();
+    else if(action==="ancient-shop-item"){selectedAncientShopId=el.dataset.id;renderAncientShop();}
+    else if(action==="ancient-exchange")exchangeSelectedAncientShop();
     else if(action==="craft")craftSelected();
     else if(action==="house-select"){selectedHouse=+el.dataset.house;renderEstate();}
     else if(action==="house-action")houseAction();
@@ -1484,6 +1545,9 @@
   }
 
   function migrateBalance() {
+    S.ancientDefeated=Object.fromEntries(Object.keys(ANCIENT).map(place=>[place,S.ancientDefeated?.[place]===true]));
+    S.ancientShopUnlocked=S.ancientShopUnlocked===true;
+    refreshAncientShopUnlock();
     S.hp=Math.min(S.hp,maxHp());
     if(isAncient()&&S.target)S.target.xp=ANCIENT_XP;
     if(["forest","mine","dungeon"].includes(S.place)&&S.grade===3&&S.target)S.target.xp=targetXp();
@@ -1576,6 +1640,9 @@
       canPaySecret,
       canReceiveSecret,
       exchangeSelectedSecret,
+      refreshAncientShopUnlock,renderAncientShop,exchangeSelectedAncientShop,
+      ancientShopItems:()=>ANCIENT_SHOP_ITEMS,
+      selectAncientShopItem:(id)=>{selectedAncientShopId=id;selectedWorkshop.type="ancient";},
       selectSecretOffer:(id)=>{selectedSecretOfferId=id;selectedWorkshop.type="secret";},
       startNewUserGuide,
       showTutorialMapStep,

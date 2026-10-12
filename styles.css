@@ -146,6 +146,9 @@ img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }
 .category-tabs button.active { border-color: #d2ad62; background: #5a4428; color: #fff3ca; }
 .category-tabs button.secret-tab { border-color: #87505f; color: #ef9fc2; font-family: Georgia, "Malgun Gothic", serif; letter-spacing: .03em; text-shadow: 0 0 7px #d53f8077; }
 .category-tabs button.secret-tab.active { border-color: #d16a87; background: linear-gradient(#592a39,#351923); color: #ffd2e1; box-shadow: inset 0 0 12px #ff477733, 0 0 8px #a82f5544; }
+.category-tabs button.ancient-tab { border-color: #498d99; color: #a4e6ef; text-shadow: 0 0 7px #42c2d477; }
+.category-tabs button.ancient-tab.active { border-color: #79d1db; background: linear-gradient(#244c54,#142c34); color: #dcfbff; box-shadow: inset 0 0 12px #43cbd333; }
+.ancient-exchange-button { border-color: #79d1db; background: linear-gradient(#326d78,#1b3943); color: #dcfbff; }
 .detail-card { border: 1px solid #6e5738; border-radius: 10px; background: linear-gradient(135deg, #262016, #16130f); overflow: hidden; }
 .old-door-detail > h3 { margin: 0; padding: 16px 18px 8px; font-size: 16px; line-height: 1.45; }
 .detail-hero { min-height: 126px; display: grid; grid-template-columns: minmax(0,42%) minmax(0,1fr); align-items: center; padding: 9px; border-bottom: 1px solid #57452f; }
@@ -287,3 +290,4 @@ img[src$="/croaker.png"], img[src$="/shell.png"] { clip-path: inset(15%); }
 .true-ending .true-ending-thanks { top: 38%; transform: none; }
 .true-ending .true-ending-thanks p { margin-bottom: 3vh; }
 .true-ending .true-ending-thanks .ending-thanks { margin-top: 5vh; }
+
