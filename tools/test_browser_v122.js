@@ -153,7 +153,7 @@ const server=http.createServer((req,res)=>{
       assert(await page.locator("#overlayContent").evaluate(e=>e.scrollWidth<=e.clientWidth+1));
       await page.screenshot({path:path.join(out,`blessing-inventory-${width}x${height}.png`)});
       await page.locator("#closeButton").click();
-      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state(),rod=s.gear.find(x=>x.type==='rod');rod.tier=4;rod.enh=10;g.addStack('transcendence',1);g.selectEnhance(rod.id);});
+      await page.evaluate(()=>{const g=window.__GAME_DEBUG__,s=g.state(),rod=s.gear.find(x=>x.type==='rod');rod.tier=4;rod.enh=12;g.addStack('transcendence',1);g.selectEnhance(rod.id);});
       await page.getByRole("button",{name:"메뉴 펼치기",exact:true}).click();
       await page.getByRole("button",{name:"강화",exact:true}).click();
       assert((await page.locator('.detail-copy').innerText()).includes('성공 확률 30%'));
@@ -252,7 +252,7 @@ const server=http.createServer((req,res)=>{
       assert.equal(await ancientTab.count(),1);
       assert(await ancientTab.evaluate(el=>el.previousElementSibling.dataset.type==="secret"));
       await ancientTab.click();
-      assert.equal(await page.locator('[data-do="ancient-shop-item"]').count(),8);
+      assert.equal(await page.locator('[data-do="ancient-shop-item"]').count(),10);
       assert((await page.locator(".detail-copy h3").innerText()).includes("+5"));
       assert(await page.locator("#overlayContent").evaluate(el=>el.scrollWidth<=el.clientWidth+1));
       await page.locator('[data-do="ancient-exchange"]').click();

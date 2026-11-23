@@ -98,6 +98,8 @@ setTimeout(async()=>{
     for(const type of ["axe","pickaxe","sword","armor"]){const gear=state.gear.find(g=>g.type===type);gear.tier=4;gear.enh=11;assert.equal(game.gearPower(gear),type==="armor"?173700:96500,`${type} uses the new +11 stat`);}
 
     state=game.freshState();game.replaceState(state);state.lv=99;state.worldGateUnlocked=false;
+    rod.enh=50;assert(Math.abs(game.enhancementMultiplier(rod)-409.3)<.001,"every extra transcendence adds the same base-stat bonus");assert.equal(game.rodMeanSeconds(rod),1,"fishing keeps its one-second floor");
+    assert.equal(game.maxEnhancement({tier:3}),10,"regular equipment keeps the +10 cap");
     state.gear=Object.keys(state.equipped).map((type,i)=>({id:`divine_${i}`,type,tier:4,enh:0}));
     assert.equal(game.hasAllDivineGear(),true);game.refreshWorldGateUnlock();assert.equal(state.worldGateUnlocked,true);
     state.gear.pop();assert.equal(game.refreshWorldGateUnlock(),true,"gate stays unlocked after divine gear is gone");
