@@ -11,7 +11,7 @@ module.exports=async function({game:g,element,localStorage,assert:a}){
   s.place="ancient_beast";g.newTarget();s.target.hp=1;s.auto=true;s.lastSeen=100000;g.settleOffline(101000);
   a.equal(s.ancientDefeated.ancient_beast,true,"offline victory records the third boss");
   a.equal(g.refreshAncientShopUnlock(),true);s.auto=false;
-  const items=g.ancientShopItems();a.equal(items.length,8);
+  const items=g.ancientShopItems();a.equal(items.length,10);
   const expected=[
     ["axe",{wood2:5000,gold2:5000,tome_wood:250,stone2:50}],
     ["pickaxe",{ore2:5000,gold2:5000,tome_ore:250,stone2:50}],
@@ -19,15 +19,19 @@ module.exports=async function({game:g,element,localStorage,assert:a}){
     ["rod",{wood2:1000,ore2:1000,gold2:2000,tome_ore:50,tome_wood:50,tome_gold:100,stone2:50}],
     ["armor",{wood2:2000,ore2:2000,gold2:1000,tome_ore:50,tome_wood:50,tome_gold:100,stone2:50}],
     ["wood",{tome_wood:10}],["ore",{tome_ore:10}],["gold",{tome_gold:10}],
+    ["dark_blessing",{tome_wood:400,tome_ore:400,tome_gold:400}],
+    ["transcendence",{tome_wood:800,tome_ore:800,tome_gold:800}],
   ];
   const fund=()=>{s.tomes={wood:1000,ore:1000,gold:1000};s.stones[2]=1000;for(const kind of ["wood","ore","gold"])s.res[kind][2]=20000;};
   for(const [id,costs]of expected){
     const item=items.find(item=>item.id===id);a.deepEqual(Object.fromEntries(item.costs.map(c=>[c.key,c.amount])),costs);
     fund();g.selectAncientShopItem(id);
     const before=Object.fromEntries(item.costs.map(c=>[c.key,g.secretItemCount(c.key)])),count=s.gear.length;
+    const rewardBefore=item.reward?g.secretItemCount(item.reward.key):0;
     a(g.exchangeSelectedAncientShop());
     for(const cost of item.costs)a.equal(g.secretItemCount(cost.key),before[cost.key]-cost.amount);
     if(item.gearType){a.equal(s.gear.length,count+1);const gear=s.gear.at(-1);a.equal(gear.type,id);a.equal(gear.tier,4);a.equal(gear.enh,5);a(s.unseenGearIds.includes(gear.id));}
+    else if(id==="dark_blessing"||id==="transcendence"){a.equal(g.secretItemCount(id),rewardBefore+1);a.equal(item.reward.amount,1);}
     else{a.equal(s.res[id][2],21000);a.equal(item.reward.amount,1000);}
   }
   fund();g.selectAncientShopItem("axe");const n=s.gear.length;
@@ -39,6 +43,9 @@ module.exports=async function({game:g,element,localStorage,assert:a}){
   g.selectAncientShopItem("wood");a(g.exchangeSelectedAncientShop(),"resources need no gear slot");a.equal(s.res.wood[2],wood+1000);
   s.res.wood[2]=g.constants.MAX_ITEM_COUNT-999;const tomes=s.tomes.wood;
   a.equal(g.exchangeSelectedAncientShop(),false);a.equal(s.tomes.wood,tomes,"a capped reward cannot consume tomes");
+  fund();g.selectAncientShopItem("transcendence");a(g.exchangeSelectedAncientShop(),"existing special stacks need no additional slot");
+  g.consumeStack("transcendence",g.stackCount("transcendence"));s.gear.push({id:"fill-special-slot",type:"axe",tier:1,enh:0});
+  fund();a.equal(g.exchangeSelectedAncientShop(),false,"new special stacks require an open slot");a.equal(s.tomes.wood,1000);
   g.renderWorkshop();a(element("overlayContent").innerHTML.includes("ancient-tab active"));a(!element("overlayContent").innerHTML.includes("data-secret-countdown"));
   s.place="home";s.auto=false;await g.flushSaveQueue();
   localStorage.setItem("isekai_lumberjack_meta",JSON.stringify({endingSeen:true,endingCount:1}));
@@ -49,5 +56,5 @@ module.exports=async function({game:g,element,localStorage,assert:a}){
   a(Object.values(s.ancientDefeated).every(v=>v===false));g.selectAncientShopItem("axe");g.renderWorkshop();
   a(!element("overlayContent").innerHTML.includes("고대 상점"));a.equal(g.exchangeSelectedAncientShop(),false);
   a.equal(g.freshState().ancientShopUnlocked,false,"a new run resets the shop unlock and victories");
-  console.log("v1.3.2 stage 2: ancient unlock, offline kills, 8 recipes, repeat trades, limits and saves OK");
+  console.log("v1.3.2 stage 2: ancient unlock, offline kills, 10 offers, repeat trades, limits and saves OK");
 };

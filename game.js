@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.3.2";
+  const APP_VERSION = "1.3.3";
   // Keep the ending review conditions until the user requests their rollback.
   const ENDING_REVIEW_RELEASE = false;
   const ANCIENT_XP = 30000000;
@@ -126,6 +126,8 @@
     {id:"rod",gearType:"rod",costs:[{key:"wood2",amount:1000},{key:"ore2",amount:1000},{key:"gold2",amount:2000},{key:"tome_ore",amount:50},{key:"tome_wood",amount:50},{key:"tome_gold",amount:100},{key:"stone2",amount:50}]},
     {id:"armor",gearType:"armor",costs:[{key:"wood2",amount:2000},{key:"ore2",amount:2000},{key:"gold2",amount:1000},{key:"tome_ore",amount:50},{key:"tome_wood",amount:50},{key:"tome_gold",amount:100},{key:"stone2",amount:50}]},
     ...["wood","ore","gold"].map(kind=>({id:kind,reward:{key:`${kind}2`,amount:1000},costs:[{key:`tome_${kind}`,amount:10}]})),
+    ...SECRET_EXCHANGE_TEMPLATES.filter(({reward})=>["dark_blessing","transcendence"].includes(reward.key))
+      .map(({reward,costs})=>({id:reward.key,reward:{...reward},costs:costs.map(({key,max})=>({key,amount:max}))})),
   ];
   const EXHAUSTED_MESSAGE = "체력이 없어 동작할 수 없습니다.\n집이나 동굴입구에서 휴식해 주세요.";
   const SFX_FILES = new Set([
@@ -337,8 +339,9 @@
   function enhancementMultiplier(g) {
     if(!g) return 1;
     let multiplier=1;
-    for(let i=1;i<=g.enh;i++) multiplier += g.tier===0 ? .2 : i<=4 ? .2 : i<=7 ? .5 : i===11&&g.tier===4 ? 10 : 2;
-    return multiplier;
+    const ordinaryLevels=g.tier===4?Math.min(g.enh,10):g.enh;
+    for(let i=1;i<=ordinaryLevels;i++) multiplier += g.tier===0 ? .2 : i<=4 ? .2 : i<=7 ? .5 : 2;
+    return multiplier+(isTranscendenceAttempt(g)?(g.enh-10)*10:0);
   }
   function gearPower(g) {
     if (!g) return 0;
@@ -1125,7 +1128,7 @@
     if(!refreshAncientShopUnlock())return false;
     const item=ANCIENT_SHOP_ITEMS.find(entry=>entry.id===selectedAncientShopId);
     if(!item||!canPaySecret(item.costs)){toast("교환에 필요한 아이템이 부족합니다.");playSfx("ui_error");return false;}
-    if(!canReceiveAncientShop(item)){toast(item.gearType?"보관함이 가득 찼습니다.":"보유 한도를 초과해 교환할 수 없습니다.");playSfx("ui_error");return false;}
+    if(!canReceiveAncientShop(item)){toast(item.gearType||(["dark_blessing","transcendence"].includes(item.reward.key)&&secretItemCount(item.reward.key)===0)?"보관함이 가득 찼습니다.":"보유 한도를 초과해 교환할 수 없습니다.");playSfx("ui_error");return false;}
     if(!paySecret(item.costs))return false;
     if(item.gearType){
       const gear={id:newId(item.gearType),type:item.gearType,tier:4,enh:5};
@@ -1226,13 +1229,14 @@
     addLog(message,foodIcon(selectedRecipe),"good");playSfx("cook");toast(message);renderCooking();renderHud();persist();
   }
 
+  function isTranscendenceAttempt(g) { return g.tier===4&&g.enh>=10; }
   function enhRequirements(g) {
-    if(g.tier===4&&g.enh===10)return {transcendence:1};
+    if(isTranscendenceAttempt(g))return {transcendence:1};
     const step=g.enh+1;
     if(g.tier<=1)return{0:step}; if(g.tier===2)return{0:step,1:step}; if(g.tier===3)return{1:step,2:step}; return{2:step*2};
   }
-  function enhChance(g){return g.tier===4&&g.enh===10?30:95-g.enh*5;}
-  function maxEnhancement(g){return g.tier===4?11:10;}
+  function enhChance(g){return isTranscendenceAttempt(g)?30:95-g.enh*5;}
+  function maxEnhancement(g){return g.tier===4?Infinity:10;}
   function enhancementHave(key){return key==="transcendence"?stackCount(key):S.stones[key];}
 
   function renderEnhance() {
@@ -1240,14 +1244,14 @@
     setOverlayHeader("강화");
     if(!g){dom.overlayContent.innerHTML="<p>강화할 장비가 없습니다.</p>";return;}
     const req=g.enh<maxEnhancement(g)?enhRequirements(g):{},ok=Object.entries(req).every(([k,v])=>enhancementHave(k)>=v);
-    const transcending=g.tier===4&&g.enh===10;
+    const transcending=isTranscendenceAttempt(g);
     const failureHint=g.tier===0?"실패해도 보존":transcending?(blessingCount()>0?"실패 시 장비 파괴(칠흑의 가호 사용불가)":"실패 시 장비 파괴"):blessingCount()>0?`실패 시 칠흑의 가호 자동 사용 · 보유 ${blessingCount().toLocaleString()}개`:"실패 시 장비 파괴";
     const reqHtml=Object.entries(req).map(([grade,need])=>`<div class="requirement-row ${enhancementHave(grade)<need?"missing":""}"><img src="${grade==="transcendence"?"assets/items/transcendence_stone.png":stoneIcon(+grade)}" alt=""><span>${grade==="transcendence"?"초월석":`${GRADES[grade]} 강화의 돌`}</span><b>${enhancementHave(grade).toLocaleString()} / ${need}</b></div>`).join("");
     dom.overlayContent.innerHTML=`<div class="detail-card"><div class="detail-hero"><div class="detail-icon"><img src="${gearIcon(g)}" alt="">${g.enh?`<i class="enh-badge">+${g.enh}</i>`:""}</div><div class="detail-copy"><h3>${gearDisplayName(g)}</h3><p class="value">${gearEffectText(g)}</p><p>${g.enh>=maxEnhancement(g)?"최대 강화":`성공 확률 ${enhChance(g)}%`}<br>${failureHint}</p></div></div><div class="requirements"><div class="section-title">보유 아이템 / 필요 아이템</div>${g.enh>=maxEnhancement(g)?`<div class="requirement-row"><img src="assets/ui/enhance.png" alt=""><span>최대 강화입니다</span><b>+${maxEnhancement(g)}</b></div>`:reqHtml}<button class="primary-button wide-action" data-do="enhance-now" ${g.enh>=maxEnhancement(g)||!ok||enhancing?"disabled":""}>${enhancing?"강화 중입니다…":"강화 시작"}</button></div></div><div class="section-title">보유 장비</div><div class="item-list">${candidates.map(item=>`<button class="item-card ${item.id===g.id?"selected":""}" data-do="enhance-select" data-id="${item.id}"><img src="${gearIcon(item)}" alt=""><span><b>${gearDisplayName(item)}</b><small>${gearEffectText(item)}</small></span></button>`).join("")}</div>`;
   }
 
   function enhanceNow() {
-    const g=gearById(selectedEnhanceId);if(!g||g.special||g.enh>=maxEnhancement(g)||enhancing)return;const req=enhRequirements(g),transcending=g.tier===4&&g.enh===10;
+    const g=gearById(selectedEnhanceId);if(!g||g.special||g.enh>=maxEnhancement(g)||enhancing)return;const req=enhRequirements(g),transcending=isTranscendenceAttempt(g);
     if(!Object.entries(req).every(([k,v])=>enhancementHave(k)>=v)){playSfx("ui_error");return;}
     for(const[k,v]of Object.entries(req)){if(k==="transcendence")consumeStack(k,v);else S.stones[k]-=v;}enhancing=true;playSfx("enhance_start");renderEnhance();toast("강화 중입니다…",3900);persist();
     setTimeout(()=>{
